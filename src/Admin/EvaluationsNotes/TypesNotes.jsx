@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Check, Link2, Link2Off, Plus, SquarePen, Trash2, X } from 'lucide-react';
 import { NotesFilter, NotesSearch } from './NotesComponents';
 import { useConfirm } from '../../composant/confirmContext';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 const emptyForm = { id: null, libelle: '', bareme: '4.00' };
 
@@ -120,13 +121,13 @@ export default function TypesNotes({
         </section>
       ) : <div className="border border-dashed border-slate-300 bg-white px-6 py-14 text-center"><p className="text-sm font-semibold text-slate-700">Sélectionnez une évaluation pour gérer ses paramètres.</p><p className="mt-1 text-xs text-slate-500">Les paramètres déjà créés restent globaux et réutilisables dans toutes les sessions.</p></div>}
 
-      {dialogOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setDialogOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="parameter-title" className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 p-5"><div><h2 id="parameter-title" className="text-base font-bold text-slate-900">{form.id ? 'Modifier un paramètre partagé' : 'Créer un paramètre partagé'}</h2><p className="mt-1 text-xs text-slate-500">Ce libellé et ce barème seront communs à chaque évaluation associée.</p></div><button type="button" disabled={busy} onClick={() => setDialogOpen(false)} aria-label="Fermer" className="p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X className="h-4 w-4" /></button></div><form onSubmit={submit} className="space-y-4 p-5">
+      {dialogOpen && <ModalOverlay onClose={() => { if (!busy) setDialogOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="parameter-title" className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 p-5"><div><h2 id="parameter-title" className="text-base font-bold text-slate-900">{form.id ? 'Modifier un paramètre partagé' : 'Créer un paramètre partagé'}</h2><p className="mt-1 text-xs text-slate-500">Ce libellé et ce barème seront communs à chaque évaluation associée.</p></div><button type="button" disabled={busy} onClick={() => setDialogOpen(false)} aria-label="Fermer" className="p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X className="h-4 w-4" /></button></div><form onSubmit={submit} className="space-y-4 p-5">
         <label className="block text-xs font-semibold text-slate-700">Libellé<input required maxLength="100" value={form.libelle} onChange={(event) => setForm((current) => ({ ...current, libelle: event.target.value }))} placeholder="Ex. Compréhension orale" className="mt-1 w-full border border-slate-300 px-3 py-2.5 text-sm" /></label>
         <label className="block text-xs font-semibold text-slate-700">Barème maximal<input required type="number" min="0.01" max="999.99" step="0.01" value={form.bareme} onChange={(event) => setForm((current) => ({ ...current, bareme: event.target.value }))} className="mt-1 w-full border border-slate-300 px-3 py-2.5 text-sm" /></label>
         {error && <p role="alert" className="text-xs font-semibold text-rose-700">{error}</p>}
         <p className="text-xs text-slate-500">Après création, associez ce paramètre à l’évaluation avec l’action de liaison dans la liste.</p>
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" disabled={busy} onClick={() => setDialogOpen(false)} className="border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-700">Annuler</button><button type="submit" disabled={busy || (!form.id && !canCreate) || (form.id && !canUpdate)} className="bg-emerald-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">{busy ? 'Enregistrement…' : 'Enregistrer'}</button></div>
-      </form></section></div>}
+      </form></section></ModalOverlay>}
     </div>
   );
 }

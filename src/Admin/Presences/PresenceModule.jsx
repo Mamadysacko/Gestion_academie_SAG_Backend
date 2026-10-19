@@ -30,6 +30,9 @@ import ParSalle from './ParSalle';
 import Statistiques from './Statistiques';
 import DossierAuditeurComplet from '../AuditeursInscriptions/DossierAuditeurComplet';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
+import LeaveDialog from './LeaveDialog';
+import { PERIOD_STATUSES } from '../../utils/leave';
 
 const VIEW_ICONS = {
   date: CalendarDays,
@@ -52,13 +55,13 @@ const numericFields = (items, fields) => dataRows(items).map((item) => Object.fr
 ));
 const isAdmin = (user) => user?.role_code === 'admin' || user?.role === 'admin';
 
-export default function PresenceModule({ onBack, currentUser }) {
+export default function PresenceModule({ onBack, currentUser, initialTab }) {
   const today = dateToInput(new Date());
   const [data, setData] = useState(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [view, setView] = useState('date');
+  const [view, setView] = useState(initialTab || 'date');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedYearId, setSelectedYearId] = useState('');
   const [periodStart, setPeriodStart] = useState('');
@@ -70,6 +73,7 @@ export default function PresenceModule({ onBack, currentUser }) {
   const [selectedSchedule, setSelectedSchedule] = useState('');
   const [search, setSearch] = useState('');
   const [profileId, setProfileId] = useState(null);
+  const [leaveRequest, setLeaveRequest] = useState(null);
   const [notice, setNotice] = useToastNotice();
   const canRead = isAdmin(currentUser) || (currentUser?.permissions?.presences || []).includes('read');
   const canUpdate = isAdmin(currentUser)
@@ -116,7 +120,7 @@ export default function PresenceModule({ onBack, currentUser }) {
     } finally {
       setLoading(false);
     }
-  }, [setError]);
+  }, [setError, setData]);
 
   useEffect(() => {
     if (canRead) Promise.resolve().then(() => loadData()).catch(() => {});
@@ -193,22 +197,38 @@ export default function PresenceModule({ onBack, currentUser }) {
     return { groupe: group, rows: rows.length, present, rate: rows.length ? Math.round((present / rows.length) * 100) : 0 };
   }).filter((item) => item.rows);
 
-  const recordPresence = async (row, status) => {
+  const recordPresence = async (row, status, extra = {}) => {
     if (!canUpdate) return;
+    // Congé et permission : la même fenêtre demande la période avant d'enregistrer.
+    if (PERIOD_STATUSES.includes(status) && !extra.conge_date_debut) {
+      setLeaveRequest({ row, status });
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      await presencesApi.mark({
+      const payload = {
         id_inscription: row.id_inscription,
         id_emploi_du_temps: row.id_emploi_du_temps || row.emploi?.id,
         id_formateur: row.id_formateur || row.formateur?.id || row.emploi?.id_formateur,
         date_presence: row.date_presence,
         statut: status,
-        conge_date_debut: status === 'conge' ? (row.conge_date_debut || row.date_presence) : null,
-        conge_date_fin: status === 'conge' ? (row.conge_date_fin || row.date_presence) : null,
+        conge_date_debut: PERIOD_STATUSES.includes(status) ? extra.conge_date_debut : null,
+        conge_date_fin: PERIOD_STATUSES.includes(status) ? extra.conge_date_fin : null,
         observation: row.observation || null,
+      };
+      await presencesApi.mark(payload);
+      // Mise à jour immédiate de l'écran : le pointage apparaît sans attendre le rechargement.
+      setData((current) => {
+        const sameRecord = (item) => item.id_inscription === payload.id_inscription && String(item.date_presence).slice(0, 10) === String(payload.date_presence).slice(0, 10);
+        const exists = current.presences.some(sameRecord);
+        const presences = exists
+          ? current.presences.map((item) => (sameRecord(item) ? { ...item, ...payload } : item))
+          : [...current.presences, { id: `local-${payload.id_inscription}-${payload.date_presence}`, ...payload }];
+        return { ...current, presences };
       });
-      await loadData();
+      // Les données serveur (identifiants, statistiques) se resynchronisent en arrière-plan.
+      loadData({ silent: true }).catch(() => {});
       setNotice(`Pointage enregistré : ${STATUS_LABELS[status].toLocaleLowerCase('fr')}.`);
       window.setTimeout(() => setNotice(''), 3000);
     } catch (saveError) {
@@ -321,13 +341,7 @@ export default function PresenceModule({ onBack, currentUser }) {
         </div>
         <div className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900"><ClipboardCheck className="h-4 w-4" /> Données synchronisées avec la base</div>
       </header>
-      <nav aria-label="Vues des présences" className="flex gap-1 overflow-x-auto border-b border-slate-200">
-        {presenceViews.map((item) => {
-          const Icon = VIEW_ICONS[item.id];
-          const active = view === item.id;
-          return <button key={item.id} type="button" onClick={() => setView(item.id)} aria-current={active ? 'page' : undefined} className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold transition ${active ? 'border-teal-700 text-teal-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'}`}><Icon className="h-4 w-4" />{item.label}</button>;
-        })}
-      </nav>
+      <SubTabNav label="Vues des présences" items={presenceViews.map((item) => ({ ...item, icon: VIEW_ICONS[item.id] }))} active={view} onChange={setView} />
       {error && <div role="alert" className="border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</div>}
       {notice && <div role="status" className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><Check className="h-4 w-4" />{notice}</div>}
       <label className="flex max-w-md flex-col gap-1 text-xs font-semibold text-slate-700">
@@ -357,6 +371,16 @@ export default function PresenceModule({ onBack, currentUser }) {
         </div>
       )}
       {loading ? <p role="status" className="border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Chargement des données de présence…</p> : <>
+        {leaveRequest && (
+          <LeaveDialog
+            kind={leaveRequest.status}
+            person={`${leaveRequest.row.auditeur?.prenom || ''} ${leaveRequest.row.auditeur?.nom || ''}`.trim()}
+            date={leaveRequest.row.date_presence}
+            initial={{ debut: leaveRequest.row.conge_date_debut || leaveRequest.row.date_presence, fin: leaveRequest.row.conge_date_fin || leaveRequest.row.date_presence }}
+            onClose={() => setLeaveRequest(null)}
+            onConfirm={({ debut, fin }) => { const { row, status } = leaveRequest; setLeaveRequest(null); recordPresence(row, status, { conge_date_debut: debut, conge_date_fin: fin }); }}
+          />
+        )}
         {saving && <p role="status" className="text-xs text-teal-800">Enregistrement en cours…</p>}
         <ActiveView {...viewProps[view]} />
         {profileId && <DossierAuditeurComplet auditeurId={profileId} onClose={() => setProfileId(null)} />}

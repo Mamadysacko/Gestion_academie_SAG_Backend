@@ -18,6 +18,9 @@ import { useConfirm } from '../../composant/confirmContext';
 import TagSelect from '../../composant/TagSelect';
 import { useLiveRefresh } from '../../composant/useLiveRefresh';
 import { useToastNotice } from '../../composant/toastContext';
+import { exportTable } from '../../utils/exportExcel';
+import SaveActions from '../../composant/SaveActions';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 const tableFields = (fields) => fields.filter((field) => field.table !== false);
 const formFields = (fields) => fields.filter((field) => field.form !== false);
@@ -79,7 +82,7 @@ export default function ParametreSection({ definition }) {
   }, [definition]);
 
   useEffect(() => {
-    loadData();
+    loadData(); // eslint-disable-line react-hooks/set-state-in-effect -- chargement initial des données
   }, [loadData]);
   useLiveRefresh(() => loadData({ silent: true }), { intervalMs: 60000 });
 
@@ -114,10 +117,12 @@ export default function ParametreSection({ definition }) {
   };
 
   // Enregistrement (Création POST ou Mise à jour PUT)
-  const saveRecord = async (event) => {
-    event.preventDefault();
+  const saveRecord = async (event, mode = 'close') => {
+    event?.preventDefault?.();
+    if (saving) return;
     const isUpdate = Boolean(editing);
-    if (!(await confirm({
+    // « Enregistrer et continuer » enchaîne les saisies : pas de confirmation à chaque élément.
+    if (!(mode === 'continue' && !isUpdate) && !(await confirm({
       title: isUpdate ? 'Enregistrer les modifications ?' : `Ajouter ce ${definition.singular || 'élément'} ?`,
       message: isUpdate
         ? `Les modifications de « ${definition.titleFor ? definition.titleFor(editing) : ''} » seront enregistrées.`
@@ -148,8 +153,18 @@ export default function ParametreSection({ definition }) {
         response?.message ||
         `${definition.singular || 'Élément'} ${recordId ? 'mis à jour' : 'ajouté'} avec succès dans la base de données.`;
       setNotice(successMsg);
-      closeForm();
-      await loadData({ silent: true });
+      if (mode === 'continue' && !isUpdate) {
+        // Le formulaire reste ouvert : champs vidés, listes de référence (année, niveau…) conservées.
+        setForm((current) => {
+          const fresh = makeFormValues(definition.fields, null);
+          formFields(definition.fields).forEach((field) => { if (field.type === 'select') fresh[field.key] = current[field.key]; });
+          return fresh;
+        });
+        loadData({ silent: true });
+      } else {
+        closeForm();
+        await loadData({ silent: true });
+      }
     } catch (saveError) {
       setError(saveError.message || 'La sauvegarde a échoué. Vérifiez la cohérence des données.');
     } finally {
@@ -200,15 +215,12 @@ export default function ParametreSection({ definition }) {
         })
       ),
     ];
-    const csv = csvRows
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';'))
-      .join('\r\n');
-    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${definition.tableName || definition.resource}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportTable({
+      filename: definition.tableName || definition.resource,
+      title: definition.title || definition.label || definition.tableName || definition.resource,
+      headings: csvRows[0],
+      rows: csvRows.slice(1),
+    });
   };
 
   const renderField = (field) => {
@@ -529,12 +541,7 @@ export default function ParametreSection({ definition }) {
 
       {/* Modal / Dialog de Création & Modification */}
       {dialogOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) closeForm();
-          }}
-        >
+        <ModalOverlay onClose={() => { if (!saving) closeForm(); }}>
           <section
             role="dialog"
             aria-modal="true"
@@ -562,7 +569,7 @@ export default function ParametreSection({ definition }) {
               </button>
             </div>
 
-            <form onSubmit={saveRecord} className="space-y-5 p-6">
+            <form id="parametre-form" onSubmit={saveRecord} className="space-y-5 p-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 {formFields(definition.fields).map((field) => (
                   <label
@@ -593,31 +600,19 @@ export default function ParametreSection({ definition }) {
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  disabled={saving}
-                  className="border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-sm transition"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 bg-teal-800 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60 rounded-sm shadow-sm transition"
-                >
-                  {saving && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                  {saving
-                    ? 'Enregistrement en base...'
-                    : editing
-                    ? 'Mettre à jour'
-                    : 'Créer l’enregistrement'}
-                </button>
+              <div className="border-t border-slate-100 pt-4">
+                <SaveActions
+                  form="parametre-form"
+                  busy={saving}
+                  onCancel={closeForm}
+                  submitLabel={editing ? 'Mettre à jour' : 'Créer l’enregistrement'}
+                  followUps={editing ? [] : [{ id: 'continue', label: `Enregistrer et ajouter un autre ${definition.singular || 'élément'}`, hint: 'Le formulaire reste ouvert pour la saisie suivante' }]}
+                  onFollowUp={(id) => saveRecord(null, id)}
+                />
               </div>
             </form>
           </section>
-        </div>
+        </ModalOverlay>
       )}
     </section>
   );

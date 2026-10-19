@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../../config/api';
+import { apiRequest as request } from '../../config/apiService';
 
 /**
  * Normalisation des noms de ressources vers les endpoints de l'API Backend_AGES.
@@ -34,48 +34,14 @@ export function normalizeResource(resource) {
  * Exécute une requête HTTP JSON standardisée vers l'API Backend_AGES.
  */
 async function apiRequest(endpoint, options = {}) {
-  const cleanBase = (API_BASE_URL || '').replace(/\/+$/, '');
-  const cleanEndpoint = endpoint.replace(/^\/+/, '');
-  const url = `${cleanBase}/${cleanEndpoint}`;
-
-  const fetchOptions = {
+  const data = await request(endpoint.replace(/^\/+/, ''), {
     method: options.method || 'GET',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...(options.body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}),
-      ...options.headers,
-    },
-  };
-
-  if (options.body) {
-    fetchOptions.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+    headers: options.headers,
+    body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body,
+  });
+  if (data && data.success === false) {
+    throw new Error(data.error || data.message || 'Erreur serveur');
   }
-
-  let response;
-  try {
-    response = await fetch(url, fetchOptions);
-  } catch {
-    throw new Error(
-      `La requête vers l'API (${cleanBase}) a échoué depuis le navigateur. Vérifiez l'URL, la connexion et la configuration CORS du backend.`
-    );
-  }
-
-  let data = null;
-  const text = await response.text();
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error(`Réponse API invalide (${response.status}) : ${text.slice(0, 150)}`);
-    }
-  }
-
-  if (!response.ok || (data && data.success === false)) {
-    const errorMsg = data?.error || data?.message || `Erreur serveur (HTTP ${response.status})`;
-    throw new Error(errorMsg);
-  }
-
   return data;
 }
 

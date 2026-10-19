@@ -20,6 +20,11 @@ import AffectationFields from './AffectationFields';
 import TagSelect from '../../composant/TagSelect';
 import { sessionOptions } from './affectationHelpers';
 import { useToastNotice } from '../../composant/toastContext';
+import Pagination from '../../composant/Pagination';
+import { usePagination } from '../../composant/usePagination';
+import PrerequisiteBanner from '../../aide/Prerequisites';
+import { usePrerequisites } from '../../aide/usePrerequisites';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 const STATUSES = [
   { value: 'active', label: 'Active' },
@@ -69,6 +74,7 @@ const can = (user, action) => isAdmin(user)
   || (user?.permissions?.inscriptions || []).includes(action);
 
 export default function InscriptionsGestion({ currentUser, initialAuditeurId, openOnMount, onInitialAuditeurConsumed, onCreateAuditeur }) {
+  const prerequisites = usePrerequisites('auditeurs/inscriptions', currentUser);
   const confirm = useConfirm();
   const [data, setData] = useState({ auditeurs: [], inscriptions: [], emplois: [], groupes: [], sessions: [], annees: [], departements: [], typesEmployes: [] });
   const [loading, setLoading] = useState(true);
@@ -165,6 +171,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
       return !term || label.includes(term);
     });
   }, [data.inscriptions, effectiveYearId, search, sessionFilter, statusFilter]);
+  const { pageRows, pagerProps } = usePagination(filtered, 25);
 
   const metrics = useMemo(() => {
     const scoped = data.inscriptions.filter((item) => (!effectiveYearId || String(item.id_annee) === effectiveYearId)
@@ -377,9 +384,10 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} />Actualiser</button>
-          {can(currentUser, 'create') && <button type="button" onClick={openCreate} className="inline-flex items-center gap-2 bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900"><Plus size={16} />Nouvelle inscription</button>}
+          {can(currentUser, 'create') && <button type="button" onClick={openCreate} disabled={prerequisites.blocked} title={prerequisites.blocked ? 'Complétez d’abord les prérequis indiqués ci-dessous' : undefined} className="inline-flex items-center gap-2 bg-brand-charcoal px-4 py-2 text-sm font-semibold text-white hover:bg-brand-gold disabled:cursor-not-allowed disabled:opacity-40"><Plus size={16} />Nouvelle inscription</button>}
         </div>
       </header>
+      <PrerequisiteBanner prerequisites={prerequisites} action="d’inscrire un auditeur" />
 
       {error && !formOpen && !editing && <div role="alert" className="flex items-start gap-2 border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><AlertCircle size={17} className="mt-0.5 shrink-0" />{error}</div>}
       {notice && <div role="status" className="border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
@@ -402,7 +410,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
           <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th className="px-3 py-3">Auditeur</th><th className="px-3 py-3">Session / groupe</th><th className="px-3 py-3">Jour</th><th className="px-3 py-3">Salle / formateur</th><th className="px-3 py-3">Département</th><th className="px-3 py-3">Inscription</th><th className="px-3 py-3">Statut</th><th className="px-3 py-3 text-right">Actions</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((item) => (
+              {pageRows.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/70">
                   <td className="px-3 py-3"><p className="font-semibold text-slate-800">{item.auditeur_prenom} {item.auditeur_nom}</p><p className="mt-1 font-mono text-xs text-slate-500">{item.auditeur_matricule}</p>{(item.auditeur_position || item.type_employe_libelle) && <p className="mt-0.5 text-[11px] text-slate-500">{[item.auditeur_position, item.type_employe_libelle].filter(Boolean).join(' · ')}</p>}</td>
                   <td className="px-3 py-3"><p className="font-semibold text-slate-800">{item.groupe_code} · {item.groupe_libelle}</p><p className="mt-1 text-xs text-slate-500">{item.session_code} · {item.session_libelle} · {item.annee_libelle}</p></td>
@@ -424,11 +432,12 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
             </tbody>
           </table>
         </div>
+        <Pagination {...pagerProps} />
         <p className="text-xs text-slate-500">{filtered.length} inscription(s) affichée(s). Un auditeur ne peut avoir qu’une inscription active par session.</p>
       </section>
 
       {formOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
+        <ModalOverlay onClose={() => { closeForm(); }}>
           <form onSubmit={wizardStep === 1 ? continueToEnrollment : submit} className="max-h-[94vh] w-full max-w-2xl space-y-5 overflow-y-auto border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
             <header className="flex items-start justify-between border-b border-slate-100 pb-4"><div><p className="text-xs font-bold uppercase tracking-wider text-teal-800">Parcours d’inscription · Étape {wizardStep} sur 2</p><h3 className="mt-1 text-xl font-bold text-slate-900">{wizardStep === 1 ? 'Auditeur' : 'Session, groupe et salle'}</h3><p className="mt-1 text-sm text-slate-500">{wizardStep === 1 ? 'Créez un dossier ou sélectionnez un auditeur déjà enregistré.' : 'Les jours de présence sont repris du groupe ; choisissez la salle de l’auditeur.'}</p></div><button type="button" onClick={closeForm} disabled={saving || creatingAuditeur} aria-label="Fermer" className="p-1 text-slate-500"><X size={18} /></button></header>
             <ol aria-label="Progression de l’inscription" className="grid grid-cols-2 gap-3">
@@ -487,11 +496,11 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
               <button type="submit" disabled={saving || creatingAuditeur || (wizardStep === 2 && (!form.id_auditeur || !form.id_emploi_du_temps || !form.id_departement)) || (wizardStep === 1 && auditeurMode === 'existing' && !data.auditeurs.length)} className="inline-flex items-center justify-center gap-2 rounded-md bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-50">{wizardStep === 1 ? (creatingAuditeur ? 'Création du dossier…' : <>Continuer <ArrowRight size={16} /></>) : (saving ? 'Enregistrement…' : <>Confirmer l’inscription <CheckCircle2 size={16} /></>)}</button>
             </footer>
           </form>
-        </div>
+        </ModalOverlay>
       )}
 
       {editing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setEditing(null); }}>
+        <ModalOverlay onClose={() => { if (!saving) setEditing(null); }}>
           <form onSubmit={saveEdit} className="max-h-[94vh] w-full max-w-2xl space-y-5 overflow-y-auto border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
             <header className="flex items-start justify-between border-b border-slate-100 pb-4"><div><p className="text-xs font-bold uppercase tracking-wider text-teal-800">Modifier l’inscription</p><h3 className="mt-1 text-xl font-bold text-slate-900">{editing.inscription.auditeur_prenom} {editing.inscription.auditeur_nom}</h3><p className="mt-1 text-sm text-slate-500">Changer de groupe ou de salle met à jour automatiquement l’année, la session, le jour et le formateur.</p></div><button type="button" onClick={() => setEditing(null)} disabled={saving} aria-label="Fermer" className="p-1 text-slate-500"><X size={18} /></button></header>
             {error && <p role="alert" className="border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
@@ -513,7 +522,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
               <button type="submit" disabled={saving || !editing.id_emploi_du_temps} className="rounded-md bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
             </footer>
           </form>
-        </div>
+        </ModalOverlay>
       )}
     </section>
   );

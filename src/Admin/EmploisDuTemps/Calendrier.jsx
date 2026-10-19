@@ -3,6 +3,7 @@ import TagSelect from '../../composant/TagSelect';
 import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, DoorOpen, UserRound, Users } from 'lucide-react';
 import { JOURS, jourLabel } from './emploisHelpers';
 import { detectConflicts } from './calendarHelpers';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 const MODES = [
   { id: 'jour', label: 'Jour' },
@@ -189,7 +190,7 @@ export default function Calendrier({ data, isTrainer = false }) {
       )}
 
       {openSlot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpenSlot(null); }}>
+        <ModalOverlay onClose={() => { setOpenSlot(null); }}>
           <section role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-slate-200 bg-white p-5 shadow-2xl">
             <h2 className="text-base font-bold text-slate-900">{openSlot.groupe_code} · {openSlot.groupe_libelle}</h2>
             <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -203,7 +204,7 @@ export default function Calendrier({ data, isTrainer = false }) {
             <ul className="mt-1 divide-y divide-slate-100 text-sm">{learnersOf(openSlot).map((item) => <li key={item.id} className="flex justify-between py-1"><span>{item.auditeur_nom} {item.auditeur_prenom}</span><span className="font-mono text-xs text-slate-500">{item.auditeur_matricule}</span></li>)}</ul>
             <div className="mt-4 flex justify-end"><button type="button" onClick={() => setOpenSlot(null)} className="border border-slate-300 px-3 py-2 text-xs font-semibold">Fermer</button></div>
           </section>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

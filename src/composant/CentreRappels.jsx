@@ -69,14 +69,14 @@ export default function CentreRappels({ currentUser, onNavigate }) {
   const urgent = visible.filter((item) => item.severite === 'attention').length;
 
   return (
-    <div ref={panel} className="fixed right-4 top-4 z-[250] print:hidden">
+    <div ref={panel} className="relative z-[250] shrink-0 print:hidden">
       <motion.button
         type="button"
         whileTap={{ scale: 0.92 }}
         onClick={() => setOpen((current) => !current)}
         aria-label={`Rappels : ${visible.length} point(s) à traiter`}
         aria-expanded={open}
-        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:bg-slate-50"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-brand-gold hover:text-brand-gold"
       >
         {urgent ? <motion.span animate={{ rotate: [0, -14, 14, -10, 10, 0] }} transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 5 }}><BellRing className="h-5 w-5 text-amber-600" /></motion.span> : <Bell className="h-5 w-5" />}
         {visible.length > 0 && (
@@ -91,7 +91,7 @@ export default function CentreRappels({ currentUser, onNavigate }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
             aria-label="Rappels"
           >
             <header className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">

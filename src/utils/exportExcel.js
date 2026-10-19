@@ -4,10 +4,13 @@ import logoAges from '../assets/logo-ages.png';
 export const FOOTER_LEFT = 'Vérifié par : AGES COORDINATEUR';
 export const FOOTER_RIGHT = 'SAG EDUCATION PROJECT';
 
-const ORANGE = 'FFF28C1E';
-const GREEN = 'FF0F766E';
-const GREY = 'FFE2E8F0';
-const BORDER = { style: 'thin', color: { argb: 'FF475569' } };
+// Charte AGES / SAG : noir charbon, or profond, or clair, brun bordeaux.
+const CHARCOAL = 'FF1F1F20';
+const GOLD = 'FFA97324';
+const GOLD_LIGHT = 'FFF5D482';
+const GREY = 'FFF5D482';
+const ZEBRA = 'FFFBF7EC';
+const BORDER = { style: 'thin', color: { argb: 'FFCBC7BF' } };
 const ALL_BORDERS = { top: BORDER, left: BORDER, bottom: BORDER, right: BORDER };
 const FORMATS = { int: '#,##0', dec: '0.00', pct: '0.0"%"', date: 'dd/mm/yyyy' };
 
@@ -84,8 +87,8 @@ export async function exportWorkbook({ filename, sheets }) {
     ws.mergeCells(1, bandFrom, 1, bandTo);
     const band = ws.getCell(1, bandFrom);
     band.value = 'Siguiri Education Project';
-    band.font = { name: 'Arial', bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
-    band.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ORANGE } };
+    band.font = { name: 'Arial', bold: true, size: 16, color: { argb: GOLD_LIGHT } };
+    band.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CHARCOAL } };
     band.alignment = { horizontal: 'center', vertical: 'middle' };
     ws.mergeCells(2, bandFrom, 2, bandTo);
     ws.getCell(2, bandFrom).value = 'SAG French Numeracy and Literacy – Employees Education Attendance & Reporting';
@@ -95,6 +98,9 @@ export async function exportWorkbook({ filename, sheets }) {
     ws.getCell(3, bandFrom).value = 'Formation Numératie et Alphabétisation en Français — Projet Éducation Siguiri (SAG)';
     ws.getCell(3, bandFrom).font = { name: 'Arial', italic: true, size: 9 };
     ws.getCell(3, bandFrom).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    for (let c = 1; c <= lastCol; c += 1) ws.getCell(4, c).border = { top: { style: 'medium', color: { argb: GOLD } } };
+    ws.getRow(4).height = 6;
 
     let row = 5;
     const fullRow = (text, font, fill, height = 20) => {
@@ -108,7 +114,7 @@ export async function exportWorkbook({ filename, sheets }) {
       row += 1;
     };
 
-    fullRow(sheet.title, { bold: true, size: 15, color: { argb: 'FF0F172A' } }, null, 26);
+    fullRow(sheet.title, { bold: true, size: 15, color: { argb: CHARCOAL } }, null, 26);
     if (sheet.subtitle) fullRow(sheet.subtitle, { size: 10, color: { argb: 'FF475569' } });
     if (sheet.filters?.length) fullRow(`Filtres : ${sheet.filters.map((item) => `${item.label} = ${item.value}`).join('  ·  ')}`, { size: 9, italic: true, color: { argb: 'FF475569' } });
     fullRow(`Édité le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, { size: 9, color: { argb: 'FF64748B' } });
@@ -122,12 +128,12 @@ export async function exportWorkbook({ filename, sheets }) {
         if (to > from) { ws.mergeCells(row, from, row, to); ws.mergeCells(row + 1, from, row + 1, to); }
         const label = ws.getCell(row, from);
         label.value = item.label;
-        label.font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF475569' } };
+        label.font = { name: 'Arial', size: 8, bold: true, color: { argb: CHARCOAL } };
         label.alignment = { horizontal: 'center', vertical: 'middle' };
         label.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREY } };
         const value = ws.getCell(row + 1, from);
         value.value = item.value;
-        value.font = { name: 'Arial', size: 13, bold: true, color: { argb: GREEN } };
+        value.font = { name: 'Arial', size: 13, bold: true, color: { argb: GOLD } };
         value.alignment = { horizontal: 'center', vertical: 'middle' };
         for (let c = from; c <= to; c += 1) {
           ws.getCell(row, c).border = ALL_BORDERS;
@@ -140,12 +146,12 @@ export async function exportWorkbook({ filename, sheets }) {
     }
 
     sheet.sections.forEach((section) => {
-      if (section.titre) fullRow(section.titre, { bold: true, size: 11, color: { argb: 'FFFFFFFF' } }, GREEN, 22);
+      if (section.titre) fullRow(section.titre, { bold: true, size: 11, color: { argb: 'FFFFFFFF' } }, GOLD, 22);
       const headerRow = ws.getRow(row);
       section.colonnes.forEach((column, index) => {
         const cell = headerRow.getCell(index + 1);
         cell.value = column.label;
-        cell.font = { name: 'Arial', bold: true, size: 9 };
+        cell.font = { name: 'Arial', bold: true, size: 9, color: { argb: CHARCOAL } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREY } };
         cell.border = ALL_BORDERS;
         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -163,7 +169,7 @@ export async function exportWorkbook({ filename, sheets }) {
           cell.border = ALL_BORDERS;
           cell.alignment = { vertical: 'middle', horizontal: ['int', 'dec', 'pct'].includes(column.type) ? 'right' : column.type === 'date' ? 'center' : 'left', wrapText: true };
           if (FORMATS[column.type]) cell.numFmt = FORMATS[column.type];
-          if (lineIndex % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+          if (lineIndex % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
         });
         if (section.hauteurLigne) dataRow.height = section.hauteurLigne;
         row += 1;
@@ -191,7 +197,7 @@ export async function exportWorkbook({ filename, sheets }) {
     right.value = FOOTER_RIGHT;
     right.font = { name: 'Arial', bold: true, size: 10 };
     right.alignment = { horizontal: 'right', vertical: 'middle' };
-    for (let c = 1; c <= lastCol; c += 1) ws.getCell(row, c).border = { top: BORDER };
+    for (let c = 1; c <= lastCol; c += 1) ws.getCell(row, c).border = { top: { style: 'medium', color: { argb: GOLD } } };
     ws.getRow(row).height = 22;
     ws.pageSetup.printArea = `A1:${ws.getColumn(lastCol).letter}${row}`;
   });
@@ -203,4 +209,41 @@ export async function exportWorkbook({ filename, sheets }) {
   link.download = `${filename}.xlsx`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/**
+ * Export tabulaire uniforme (une feuille) : même en-tête à deux logos, mêmes couleurs et même
+ * pied de page que les rapports. `headings` : libellés ; `rows` : tableaux de valeurs.
+ */
+export async function exportTable({ filename, title, subtitle, filters, summary, headings, rows, sheetName }) {
+  const colonnes = headings.map((label, index) => ({ key: String(index), label: String(label) }));
+  const lignes = rows.map((row) => Object.fromEntries(row.map((value, index) => [String(index), value])));
+  await exportWorkbook({
+    filename,
+    sheets: [{ name: sheetName || title, title, subtitle, filters, summary, sections: [{ colonnes, lignes }] }],
+  });
+}
+
+/**
+ * Export d'une grille libre (ex. bilan en plusieurs blocs) : les lignes vides séparent les blocs ;
+ * dans un bloc, une ligne à une seule cellule est un titre de section, la ligne suivante
+ * l'en-tête du tableau.
+ */
+export async function exportGrid({ filename, title, subtitle, lines, sheetName }) {
+  const sections = [];
+  let block = [];
+  const flush = () => {
+    if (!block.length) return;
+    let titre = '';
+    if (block.length > 1 && block[0].length === 1) titre = String(block.shift()[0]);
+    const [head, ...body] = block;
+    const width = Math.max(head.length, ...body.map((row) => row.length));
+    const colonnes = Array.from({ length: width }, (_, index) => ({ key: String(index), label: String(head[index] ?? '') }));
+    const lignes = body.map((row) => Object.fromEntries(row.map((value, index) => [String(index), value])));
+    sections.push({ titre, colonnes, lignes });
+    block = [];
+  };
+  lines.forEach((line) => { if (!line.length) flush(); else block.push(line); });
+  flush();
+  await exportWorkbook({ filename, sheets: [{ name: sheetName || title, title, subtitle, sections }] });
 }

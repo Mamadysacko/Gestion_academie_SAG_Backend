@@ -8,6 +8,8 @@ import { AppreciationBadge, ResultBadge } from '../EvaluationsNotes/ResultatsCom
 import { DECISION_LABELS, formatAverage } from '../EvaluationsNotes/resultatsHelpers';
 import ReleveDocument from '../EvaluationsNotes/ReleveDocument';
 import { formatShortDate } from './affectationHelpers';
+import ModalOverlay from '../../composant/ModalOverlay';
+import { PERIOD_STATUSES } from '../../utils/leave';
 
 const TABS = [
   { id: 'identite', label: 'Identité', icon: IdCard },
@@ -161,7 +163,7 @@ export default function DossierAuditeurComplet({ auditeurId, onClose, onEdit, on
                 <div className="max-h-96 overflow-y-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="sticky top-0 bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Statut</th><th className="px-3 py-2">Session · groupe · salle</th><th className="px-3 py-2">Formateur</th><th className="px-3 py-2">Observation</th></tr></thead>
-                    <tbody className="divide-y divide-slate-100">{presences.map((row) => <tr key={row.id}><td className="px-3 py-1.5 tabular-nums">{formatShortDate(row.date_presence)}</td><td className={`px-3 py-1.5 font-semibold ${STATUS_TONES[row.statut]}`}>{STATUS_LABELS[row.statut]}{row.statut === 'conge' && row.conge_date_debut ? <span className="block text-[10px] font-normal text-slate-500">{formatShortDate(row.conge_date_debut)} → {formatShortDate(row.conge_date_fin)}</span> : null}</td><td className="px-3 py-1.5">{row.session_code} · {row.groupe_code} · {row.salle_code}</td><td className="px-3 py-1.5">{row.formateur_prenom} {row.formateur_nom}</td><td className="px-3 py-1.5 text-slate-500">{row.observation || ''}</td></tr>)}</tbody>
+                    <tbody className="divide-y divide-slate-100">{presences.map((row) => <tr key={row.id}><td className="px-3 py-1.5 tabular-nums">{formatShortDate(row.date_presence)}</td><td className={`px-3 py-1.5 font-semibold ${STATUS_TONES[row.statut]}`}>{STATUS_LABELS[row.statut]}{PERIOD_STATUSES.includes(row.statut) && row.conge_date_debut ? <span className="block text-[10px] font-normal text-slate-500">{formatShortDate(row.conge_date_debut)} → {formatShortDate(row.conge_date_fin)}</span> : null}</td><td className="px-3 py-1.5">{row.session_code} · {row.groupe_code} · {row.salle_code}</td><td className="px-3 py-1.5">{row.formateur_prenom} {row.formateur_nom}</td><td className="px-3 py-1.5 text-slate-500">{row.observation || ''}</td></tr>)}</tbody>
                   </table>
                   {!presences.length && <p className="py-6 text-center text-xs text-slate-500">Aucun pointage enregistré.</p>}
                 </div>
@@ -215,7 +217,7 @@ export default function DossierAuditeurComplet({ auditeurId, onClose, onEdit, on
 }
 
 function Overlay({ children, onClose }) {
-  return <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div role="dialog" aria-modal="true" className="my-4 w-full max-w-5xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">{children}</div></div>;
+  return <ModalOverlay align="top" onClose={() => { onClose(); }}><div role="dialog" aria-modal="true" className="my-4 w-full max-w-5xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">{children}</div></ModalOverlay>;
 }
 
 function Card({ title, action, children }) {

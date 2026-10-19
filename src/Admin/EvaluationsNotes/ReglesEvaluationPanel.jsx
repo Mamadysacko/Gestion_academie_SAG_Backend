@@ -5,6 +5,7 @@ import { useConfirm } from '../../composant/confirmContext';
 import { NotesFilter } from './NotesComponents';
 import { formatShortDate } from '../AuditeursInscriptions/affectationHelpers';
 import { useToastNotice } from '../../composant/toastContext';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 /**
  * Règles de passage, barème d'appréciation (1 à 4) et évaluations numérotées des sessions.
@@ -114,14 +115,14 @@ export default function ReglesEvaluationPanel({ regles, bareme, sessions, evalua
         </section>
       </div>
 
-      {editing && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(null); }}>
+      {editing && <ModalOverlay onClose={() => { setEditing(null); }}>
         <form onSubmit={saveEvaluation} className="w-full max-w-md space-y-4 border border-slate-200 bg-white p-5 shadow-2xl">
           <h2 className="text-base font-bold text-slate-900">Évaluation {editing.numero}</h2>
           <label className="block text-xs font-semibold text-slate-700">Libellé<input required maxLength="100" value={editing.libelle} onChange={(event) => setEditing((current) => ({ ...current, libelle: event.target.value }))} className={input} /></label>
           <label className="block text-xs font-semibold text-slate-700">Date<input required type="date" value={editing.date_evaluation} onChange={(event) => setEditing((current) => ({ ...current, date_evaluation: event.target.value }))} className={input} /></label>
           <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditing(null)} className="border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Annuler</button><button type="submit" disabled={busy} className="bg-emerald-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Enregistrer</button></div>
         </form>
-      </div>}
+      </ModalOverlay>}
     </div>
   );
 }

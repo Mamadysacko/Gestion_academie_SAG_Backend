@@ -1,4 +1,3 @@
-import React from 'react';
 
 const StatCard = ({ title, value, subtitle, icon: Icon, color = 'blue' }) => {
   const colorStyles = {

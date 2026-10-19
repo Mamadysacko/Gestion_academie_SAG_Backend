@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, User, Mail, Phone, Lock, Shield, Eye, EyeOff, RefreshCw, Check } from 'lucide-react';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 function generateRandomPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
@@ -73,7 +74,7 @@ export default function ModalUtilisateur({ isOpen, onClose, onSave, editingUser,
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in">
+    <ModalOverlay onClose={() => onClose} closeOnBackdrop={false}>
       <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
@@ -298,6 +299,6 @@ export default function ModalUtilisateur({ isOpen, onClose, onSave, editingUser,
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

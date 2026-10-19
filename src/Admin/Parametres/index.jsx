@@ -1,30 +1,41 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, BriefcaseBusiness, Building2, Scale, Star, CalendarDays, ChartNoAxesColumn, ClipboardCheck, Languages } from 'lucide-react';
+import { ArrowLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChartNoAxesColumn, ClipboardCheck, Languages, ListChecks, Users } from 'lucide-react';
+import manifest from 'virtual:ages-features';
+import Configuration from './Configuration';
+import { buildConfigSteps } from './configModel';
+import AnneesScolaires from '../OrganisationPedagogique/AnneesScolaires';
+import Groupes from '../OrganisationPedagogique/Groupes';
 import Departements from './Departements';
 import Niveaux from './Niveaux';
 import TypesFormations from './TypesFormations';
-import Sessions from './Sessions';
+import Sessions from '../OrganisationPedagogique/Sessions';
 import ParametresEvaluation from './ParametresEvaluation';
 import TypesEmployes from './TypesEmployes';
-import ReglesPassage from './ReglesPassage';
-import BaremesAppreciation from './BaremesAppreciation';
 import { useLanguage } from '../../i18n/useLanguage';
+import SubTabNav from '../../composant/SubTabNav';
 
-const tabs = [
-  { id: 'departements', labelKey: 'departments', icon: Building2, component: Departements },
-  { id: 'niveaux', labelKey: 'levels', icon: ChartNoAxesColumn, component: Niveaux },
-  { id: 'types', labelKey: 'trainingTypes', icon: BookOpen, component: TypesFormations },
-  { id: 'types-employes', labelKey: 'employeeTypes', icon: BriefcaseBusiness, component: TypesEmployes },
-  { id: 'sessions', labelKey: 'sessions', icon: CalendarDays, component: Sessions },
-  { id: 'evaluations', labelKey: 'evaluationSettings', icon: ClipboardCheck, component: ParametresEvaluation },
-  { id: 'regles', label: 'Règles d’évaluation', icon: Scale, component: ReglesPassage },
-  { id: 'baremes', label: 'Barème d’appréciation', icon: Star, component: BaremesAppreciation },
+// `table` relie chaque sous-onglet à sa table : l'ordre des onglets suit les dépendances du schéma SQL.
+const dataTabs = [
+  { id: 'annees', label: 'Années scolaires', icon: CalendarDays, component: AnneesScolaires, table: 'annees_scolaires' },
+  { id: 'groupes', label: 'Groupes', icon: Users, component: Groupes, table: 'groupes' },
+  { id: 'departements', labelKey: 'departments', icon: Building2, component: Departements, table: 'departements' },
+  { id: 'niveaux', labelKey: 'levels', icon: ChartNoAxesColumn, component: Niveaux, table: 'niveaux' },
+  { id: 'types', labelKey: 'trainingTypes', icon: BookOpen, component: TypesFormations, table: 'types_formations' },
+  { id: 'types-employes', labelKey: 'employeeTypes', icon: BriefcaseBusiness, component: TypesEmployes, table: 'types_employes' },
+  { id: 'sessions', labelKey: 'sessions', icon: CalendarDays, component: Sessions, table: 'sessions' },
+  { id: 'evaluations', labelKey: 'evaluationSettings', icon: ClipboardCheck, component: ParametresEvaluation, table: 'parametres' },
 ];
 
-export default function Parametres({ onBack }) {
+const configOrder = buildConfigSteps(manifest.schema).map((step) => step.id);
+const tabs = [
+  { id: 'configuration', label: 'Configuration', icon: ListChecks, component: Configuration },
+  ...[...dataTabs].sort((a, b) => configOrder.indexOf(a.table) - configOrder.indexOf(b.table)),
+];
+
+export default function Parametres({ onBack, initialTab, currentUser }) {
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState(tabs[0].id);
+  const [activeTab, setActiveTab] = useState(tabs.some((tab) => tab.id === initialTab) ? initialTab : tabs[0].id);
   const currentTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
   const ActiveSection = currentTab.component;
 
@@ -67,19 +78,11 @@ export default function Parametres({ onBack }) {
         </label>
       </section>
 
-      <nav aria-label="Sous-onglets des paramètres" className="flex gap-1 overflow-x-auto border-b border-slate-200">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const selected = tab.id === activeTab;
-          return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} aria-current={selected ? 'page' : undefined} className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold transition ${selected ? 'border-teal-700 text-teal-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'}`}>
-            <Icon className="h-4 w-4" />{tab.label || t(tab.labelKey)}
-          </button>;
-        })}
-      </nav>
+      <SubTabNav label="Sous-onglets des paramètres" items={tabs.map((tab) => ({ ...tab, label: tab.label || t(tab.labelKey) }))} active={activeTab} onChange={setActiveTab} />
 
       <AnimatePresence mode="wait">
         <motion.div key={currentTab.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-          <ActiveSection />
+          <ActiveSection currentUser={currentUser} onOpenTab={setActiveTab} />
         </motion.div>
       </AnimatePresence>
     </div>

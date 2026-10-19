@@ -5,6 +5,7 @@ import { AppreciationBadge, ProgressBar, ResultBadge } from './ResultatsComponen
 import { appreciationFor, downloadCsv, formatAverage, RESULT_LABELS } from './resultatsHelpers';
 import { useSessionResults } from './useSessionResults';
 import { formatShortDate } from '../AuditeursInscriptions/affectationHelpers';
+import { printPage } from '../../utils/print';
 
 /** Rapport de situation des notes d'une session (calculé par le serveur, actualisé en direct). */
 export default function RapportSituation({ sessions, data }) {
@@ -42,7 +43,7 @@ export default function RapportSituation({ sessions, data }) {
         <NotesSearch value={search} onChange={setSearch} />
         <div className="flex gap-2">
           <button type="button" onClick={exportCsv} disabled={!rows.length} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-40"><Download className="h-4 w-4" />CSV</button>
-          <button type="button" onClick={() => window.print()} disabled={!results} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-40"><Printer className="h-4 w-4" />Imprimer</button>
+          <button type="button" onClick={() => printPage('Situation des notes')} disabled={!results} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-40"><Printer className="h-4 w-4" />Imprimer</button>
         </div>
       </section>
 

@@ -15,6 +15,8 @@ import {
   exportAuditeursToCSV,
 } from './auditeursHelpers';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
+import Pagination from '../../composant/Pagination';
+import { usePagination } from '../../composant/usePagination';
 
 export default function ListeAuditeurs({
   data,
@@ -121,6 +123,7 @@ export default function ListeAuditeurs({
       return sortDirection === 'asc' ? cmp : -cmp;
     });
   }, [filteredList, sortField, sortDirection]);
+  const { pageRows, pagerProps } = usePagination(sortedList, 25);
 
   const toggleSort = (field) => {
     if (sortField === field) {
@@ -315,7 +318,7 @@ export default function ListeAuditeurs({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {sortedList.map((item) => {
+              {pageRows.map((item) => {
                 const stCfg = getStatutBadgeConfig(item.currentStatut);
 
                 return (
@@ -458,6 +461,7 @@ export default function ListeAuditeurs({
             </tbody>
           </table>
         </div>
+        <Pagination {...pagerProps} />
 
         {sortedList.length === 0 && (
           <div className="p-12 text-center text-slate-400 text-xs">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, UserPlus, Sparkles, AlertCircle } from 'lucide-react';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 function createMatricule(yearLabel, auditeurs) {
   const year = String(yearLabel || new Date().getFullYear()).split('-')[0];
@@ -77,12 +78,7 @@ export default function FormAuditeurDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <ModalOverlay onClose={() => { onClose(); }}>
       <div
         role="dialog"
         aria-modal="true"
@@ -295,6 +291,6 @@ export default function FormAuditeurDialog({
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

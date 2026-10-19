@@ -10,17 +10,18 @@ import SallesModule from './Salles';
 import PresenceModule from './Presences/PresenceModule';
 import AuditeursInscriptionsModule from './AuditeursInscriptions';
 import EmploisDuTempsModule from './EmploisDuTemps';
-import OrganisationPedagogiqueModule from './OrganisationPedagogique';
 import TableDeBord from './TableauDeBord';
+import AidePage from '../aide/AidePage';
 import UtilisateurModule from './Utilisateur';
 import { getPresenceData } from './Presences/presenceData';
 import MonProfil from './Utilisateur/MonProfil';
 import EspaceFormateur from './Formateurs/EspaceFormateur';
 import { useConfirm } from '../composant/confirmContext';
 import { useToastNotice } from '../composant/toastContext';
+import { exportTable } from '../utils/exportExcel';
+import ModalOverlay from '../composant/ModalOverlay';
 
 const MODULES = [
-  { id: 'organisation-pedagogique', label: 'Organisation Pédagogique', singular: 'Organisation Pédagogique', icon: CalendarDays, fields: [] },
   { id: 'emplois-temps', label: 'Emplois du temps', singular: 'séance', icon: CalendarDays, fields: [
     { key: 'groupe', label: 'Groupe', required: true },
     { key: 'matiere', label: 'Matière / formation' },
@@ -64,13 +65,14 @@ const MODULES = [
 
 const makeEmptyData = () => Object.fromEntries(MODULES.map((module) => [module.id, []]));
 
-const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onUserUpdated }) => {
+const AdminDashboard = ({ activeTab = 'overview', subTab = null, navAction = null, setActiveTab, currentUser, onUserUpdated }) => {
   const confirm = useConfirm();
   const [records, setRecords] = useState(makeEmptyData);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [openCreateUser, setOpenCreateUser] = useState(false);
+  // Arrivée depuis une redirection de prérequis (« créer un formateur ») : le formulaire de création s'ouvre directement.
+  const [openCreateUser, setOpenCreateUser] = useState(activeTab === 'utilisateurs' && navAction === 'create');
   const [notice, setNotice] = useToastNotice();
   const [formValues, setFormValues] = useState({});
   const activeModule = MODULES.find((module) => module.id === activeTab);
@@ -84,7 +86,11 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
   }, [activeTab, records, search]);
 
   if (activeTab === 'overview') {
-    return <TableDeBord setActiveTab={setActiveTab} currentUser={currentUser} />;
+    return <TableDeBord setActiveTab={setActiveTab} currentUser={currentUser} initialTab={subTab} />;
+  }
+
+  if (activeTab === 'rapports') {
+    return <TableDeBord setActiveTab={setActiveTab} currentUser={currentUser} initialTab="reports" />;
   }
 
   if (activeTab === 'profil') {
@@ -96,15 +102,15 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
 
   if (activeTab === 'espace-formateur'
     && (currentUser?.role_code === 'formateur' || currentUser?.role === 'formateur')) {
-    return <EspaceFormateur currentUser={currentUser} />;
+    return <EspaceFormateur currentUser={currentUser} initialTab={subTab} />;
   }
 
   if (activeTab === 'presences') {
-    return <PresenceModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} />;
+    return <PresenceModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} initialTab={subTab} />;
   }
 
   if (activeTab === 'evaluations') {
-    return <NotesModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} />;
+    return <NotesModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} initialTab={subTab} />;
   }
 
   if (activeTab === 'formateurs') {
@@ -112,6 +118,7 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
       <FormateursModule
         onBack={() => setActiveTab?.('overview')}
         currentUser={currentUser}
+        initialTab={subTab}
         canCreateUser={currentUser?.role === 'admin'
           || currentUser?.role_code === 'admin'
           || (currentUser?.permissions?.utilisateurs || []).includes('create')}
@@ -124,19 +131,15 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
   }
 
   if (activeTab === 'salles') {
-    return <SallesModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} />;
+    return <SallesModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} initialTab={subTab} />;
   }
 
   if (activeTab === 'auditeurs') {
-    return <AuditeursInscriptionsModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} />;
+    return <AuditeursInscriptionsModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} initialTab={subTab} />;
   }
 
   if (activeTab === 'emplois-temps') {
-    return <EmploisDuTempsModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'organisation-pedagogique') {
-    return <OrganisationPedagogiqueModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} />;
+    return <EmploisDuTempsModule onBack={() => setActiveTab?.('overview')} currentUser={currentUser} initialTab={subTab} />;
   }
 
   if (activeTab === 'utilisateurs') {
@@ -144,6 +147,7 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
       <UtilisateurModule
         onBack={() => setActiveTab?.('overview')}
         currentUser={currentUser}
+        initialTab={subTab}
         openCreateUser={openCreateUser}
         onCreateUserHandled={() => setOpenCreateUser(false)}
       />
@@ -151,7 +155,11 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
   }
 
   if (activeTab === 'parametres') {
-    return <Parametres onBack={() => setActiveTab?.('overview')} />;
+    return <Parametres onBack={() => setActiveTab?.('overview')} initialTab={subTab} currentUser={currentUser} />;
+  }
+
+  if (activeTab === 'aide') {
+    return <AidePage currentUser={currentUser} onNavigate={setActiveTab} />;
   }
 
   const openForm = (record = null) => {
@@ -189,14 +197,12 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
   const exportRows = () => {
     if (!activeModule || visibleRecords.length === 0) return;
     const headers = activeModule.fields.map((field) => field.label);
-    const csv = [headers, ...visibleRecords.map((record) => activeModule.fields.map((field) => record[field.key] || ''))]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';'))
-      .join('\r\n');
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    link.download = `${activeModule.id}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    exportTable({
+      filename: activeModule.id,
+      title: activeModule.label,
+      headings: headers,
+      rows: visibleRecords.map((record) => activeModule.fields.map((field) => record[field.key] || '')),
+    });
   };
 
   if (!activeModule) {
@@ -285,7 +291,7 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
       </section>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsFormOpen(false); }}>
+        <ModalOverlay onClose={() => { setIsFormOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="record-form-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 id="record-form-title" className="text-base font-bold text-slate-900">{editing ? 'Modifier' : 'Ajouter'} : {activeModule.singular}</h2><p className="mt-1 text-xs text-slate-500">Les champs marqués sont obligatoires.</p></div><button onClick={() => setIsFormOpen(false)} aria-label="Fermer" className="p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div>
             <form onSubmit={saveRecord} className="space-y-4 p-5">
@@ -293,7 +299,7 @@ const AdminDashboard = ({ activeTab = 'overview', setActiveTab, currentUser, onU
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setIsFormOpen(false)} className="border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Annuler</button><button type="submit" className="bg-teal-800 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-900">{editing ? 'Enregistrer' : 'Ajouter'}</button></div>
             </form>
           </section>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

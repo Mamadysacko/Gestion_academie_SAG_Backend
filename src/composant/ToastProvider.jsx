@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BellRing, CheckCircle2, Info, TriangleAlert, X, XCircle } from 'lucide-react';
 import { ToastContext } from './toastContext';
@@ -51,11 +52,14 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed right-4 top-[4.5rem] z-[300] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 print:hidden">
-        <AnimatePresence initial={false}>
-          {toasts.map((item) => <ToastItem key={item.id} toast={item} onDismiss={dismiss} />)}
-        </AnimatePresence>
-      </div>
+      {createPortal(
+        <div aria-live="polite" className="pointer-events-none fixed right-4 top-[4.5rem] z-[600] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 print:hidden">
+          <AnimatePresence initial={false}>
+            {toasts.map((item) => <ToastItem key={item.id} toast={item} onDismiss={dismiss} />)}
+          </AnimatePresence>
+        </div>,
+        document.body,
+      )}
     </ToastContext.Provider>
   );
 }

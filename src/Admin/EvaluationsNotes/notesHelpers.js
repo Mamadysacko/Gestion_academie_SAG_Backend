@@ -1,3 +1,4 @@
+import { exportTable } from '../../utils/exportExcel';
 export function calculateAverageOnFour(totalPoints, totalMaximum) {
   const points = Number(totalPoints);
   const maximum = Number(totalMaximum);
@@ -117,11 +118,5 @@ export function exportNotesCsv(rows, filename) {
     row.trainer ? `${row.trainer.prenom} ${row.trainer.nom}` : '',
     row.observation,
   ])];
-  const csv = csvRows.map((line) => line.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  exportTable({ filename, title: 'Liste des notes', headings, rows: csvRows.slice(1) });
 }

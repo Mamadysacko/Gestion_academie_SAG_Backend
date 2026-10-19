@@ -12,6 +12,9 @@ import { loadPlanningData } from '../planningData';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
 import { useConfirm } from '../../composant/confirmContext';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
+import PrerequisiteBanner from '../../aide/Prerequisites';
+import { usePrerequisites } from '../../aide/usePrerequisites';
 
 const tabs = [
   { id: 'liste', label: 'Liste des formateurs', icon: Users },
@@ -25,11 +28,11 @@ const emptyData = {
   formateurs: [], salles: [], emplois_du_temps: [], inscriptions: [], inscriptionsAccessibles: false, presences: [],
 };
 
-export default function FormateursModule({ onBack, currentUser, onCreateUser, canCreateUser = false }) {
+export default function FormateursModule({ onBack, currentUser, onCreateUser, canCreateUser = false, initialTab }) {
   const confirm = useConfirm();
   const [data, setData] = useState(emptyData);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('liste');
+  const [activeTab, setActiveTab] = useState(initialTab || 'liste');
   const [trainerDialog, setTrainerDialog] = useState(null);
   const [scheduleDialog, setScheduleDialog] = useState(null);
   const [selectedTrainer, setSelectedTrainer] = useState('');
@@ -61,6 +64,7 @@ export default function FormateursModule({ onBack, currentUser, onCreateUser, ca
   const hasAccess = (module, action) => currentUser?.role_code === 'admin'
     || currentUser?.role === 'admin'
     || (currentUser?.permissions?.[module] || []).includes(action);
+  const planningPrerequisites = usePrerequisites('formateurs/affectations', currentUser);
   const canUsePlanning = ['emplois-temps', 'organisation-pedagogique', 'salles', 'formateurs']
     .every((module) => hasAccess(module, 'read'));
 
@@ -112,7 +116,7 @@ export default function FormateursModule({ onBack, currentUser, onCreateUser, ca
     }
   };
 
-  const saveSchedule = async (record) => {
+  const saveSchedule = async (record, mode = 'close') => {
     try {
       const payload = {
         id_annee: Number(record.id_annee),
@@ -124,10 +128,13 @@ export default function FormateursModule({ onBack, currentUser, onCreateUser, ca
       };
       if (record.id) await emploisApi.update(record.id, payload);
       else await emploisApi.create(payload);
-      await reloadData();
-      setScheduleDialog(null);
+      // Fermeture immédiate dès que l'enregistrement est confirmé ; la liste se met à jour juste après.
       setError('');
       setNotice(`Créneau ${record.id ? 'modifié' : 'ajouté'} dans l’emploi du temps partagé.`);
+      reloadData().catch(() => {});
+      setScheduleDialog(mode === 'continue' && !record.id
+        ? { schedule: null, key: Date.now(), preset: { id_annee: payload.id_annee, id_salle: payload.id_salle, id_formateur: payload.id_formateur } }
+        : null);
     } catch (scheduleError) {
       setError(scheduleError.message || 'La séance n’a pas pu être enregistrée.');
     }
@@ -171,13 +178,14 @@ export default function FormateursModule({ onBack, currentUser, onCreateUser, ca
     {canUsePlanning && conflicts.length > 0 && <section className="border border-rose-200 bg-rose-50 p-4"><div className="flex items-center gap-2 text-sm font-bold text-rose-900"><AlertTriangle className="h-4 w-4" />{conflicts.length} conflit(s) détecté(s)</div><p className="mt-1 text-xs text-rose-800">Les contraintes de disponibilité de la base empêchent les doubles réservations du formateur ou de la salle le même jour.</p></section>}
     {error && <div role="alert" className="flex items-start justify-between gap-3 border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Fermer" className="shrink-0"><X className="h-4 w-4" /></button></div>}
     {notice && <div role="status" className="border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div>}
-    {!loading && hasAccess('formateurs', 'read') && <nav aria-label="Sections Formateurs" className="flex gap-1 overflow-x-auto border-b border-slate-200">{tabs.filter((tab) => tab.id === 'liste' || canUsePlanning).map((tab) => { const Icon = tab.icon; const active = activeTab === tab.id; return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} aria-current={active ? 'page' : undefined} className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold ${active ? 'border-teal-700 text-teal-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'}`}><Icon className="h-4 w-4" />{tab.label}</button>; })}</nav>}
+    {!loading && hasAccess('formateurs', 'read') && <SubTabNav label="Sections Formateurs" items={tabs.filter((tab) => tab.id === 'liste' || canUsePlanning)} active={activeTab} onChange={setActiveTab} />}
     {!loading && !hasAccess('formateurs', 'read') && <div role="alert" className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Vous n’avez pas la permission de consulter les formateurs.</div>}
     {!loading && activeTab === 'liste' && hasAccess('formateurs', 'read') && <ListeFormateurs trainers={data.formateurs} workloads={workloads} onEdit={(trainer) => { setError(''); setTrainerDialog({ trainer }); }} onViewSchedule={openTrainerSchedule} onToggleStatus={toggleStatus} onDelete={removeTrainer} canUpdate={hasAccess('formateurs', 'update')} canDelete={hasAccess('formateurs', 'delete')} canReadSchedule={canUsePlanning} />}
-    {!loading && activeTab === 'affectations' && canUsePlanning && <AffectationsFormateur schedules={schedules} trainers={data.formateurs} groups={data.groupes} onNew={() => { setError(''); setScheduleDialog({ schedule: null }); }} onEdit={(schedule) => { setError(''); setScheduleDialog({ schedule }); }} onDelete={removeSchedule} canCreate={hasAccess('emplois-temps', 'create')} canUpdate={hasAccess('emplois-temps', 'update')} canDelete={hasAccess('emplois-temps', 'delete')} />}
-    {!loading && activeTab === 'emploi' && canUsePlanning && <EmploiDuTemps data={data} schedules={schedules} trainers={data.formateurs} groups={data.groupes} rooms={data.salles} selectedTrainer={selectedTrainer} onNew={() => { setError(''); setScheduleDialog({ schedule: null }); }} onEdit={(schedule) => { setError(''); setScheduleDialog({ schedule }); }} onDelete={removeSchedule} canCreate={hasAccess('emplois-temps', 'create')} canUpdate={hasAccess('emplois-temps', 'update')} canDelete={hasAccess('emplois-temps', 'delete')} />}
+    {!loading && (activeTab === 'affectations' || activeTab === 'emploi') && canUsePlanning && <PrerequisiteBanner prerequisites={planningPrerequisites} action="de planifier une séance" />}
+    {!loading && activeTab === 'affectations' && canUsePlanning && <AffectationsFormateur schedules={schedules} trainers={data.formateurs} groups={data.groupes} onNew={() => { setError(''); setScheduleDialog({ schedule: null }); }} onEdit={(schedule) => { setError(''); setScheduleDialog({ schedule }); }} onDelete={removeSchedule} canCreate={hasAccess('emplois-temps', 'create') && !planningPrerequisites.blocked} canUpdate={hasAccess('emplois-temps', 'update')} canDelete={hasAccess('emplois-temps', 'delete')} />}
+    {!loading && activeTab === 'emploi' && canUsePlanning && <EmploiDuTemps data={data} schedules={schedules} trainers={data.formateurs} groups={data.groupes} rooms={data.salles} selectedTrainer={selectedTrainer} onNew={() => { setError(''); setScheduleDialog({ schedule: null }); }} onEdit={(schedule) => { setError(''); setScheduleDialog({ schedule }); }} onDelete={removeSchedule} canCreate={hasAccess('emplois-temps', 'create') && !planningPrerequisites.blocked} canUpdate={hasAccess('emplois-temps', 'update')} canDelete={hasAccess('emplois-temps', 'delete')} />}
     {!loading && activeTab === 'charge' && canUsePlanning && <ChargeTravail data={data} schedules={activeSchedules} />}
     {trainerDialog && <TrainerDialog key={`${trainerDialog.trainer?.id ?? 'new'}`} trainer={trainerDialog.trainer} rooms={data.salles} trainers={data.formateurs} error={error} onClose={() => setTrainerDialog(null)} onSave={saveTrainer} />}
-    {scheduleDialog && <ScheduleDialog key={`${scheduleDialog.schedule?.id ?? 'new'}`} schedule={scheduleDialog.schedule} data={data} error={error} onClose={() => setScheduleDialog(null)} onSave={saveSchedule} />}
+    {scheduleDialog && <ScheduleDialog key={`${scheduleDialog.schedule?.id ?? 'new'}-${scheduleDialog.key ?? ''}`} schedule={scheduleDialog.schedule} preset={scheduleDialog.preset} data={data} error={error} onClose={() => setScheduleDialog(null)} onSave={saveSchedule} />}
   </div>;
 }

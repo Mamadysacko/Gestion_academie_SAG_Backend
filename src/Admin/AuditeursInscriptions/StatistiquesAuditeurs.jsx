@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { calculateStatistics, exportStatistiquesToCSV } from './auditeursHelpers';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
+import { printPage } from '../../utils/print';
 
 export default function StatistiquesAuditeurs({ data }) {
   const [selectedYearId, setSelectedYearId] = useState('');
@@ -56,7 +57,7 @@ export default function StatistiquesAuditeurs({ data }) {
   };
 
   const handlePrint = () => {
-    window.print();
+    printPage('Bilan statistique des auditeurs');
   };
 
   return (

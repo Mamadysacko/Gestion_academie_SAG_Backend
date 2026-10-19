@@ -6,14 +6,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
-  Search,
-  User,
-  Calendar,
-  Sparkles,
-  Info,
 } from 'lucide-react';
-import { formatDateFr } from './auditeursHelpers';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 export default function InscriptionDialog({
   isOpen,
@@ -28,8 +23,8 @@ export default function InscriptionDialog({
 
   // État local de l'auditeur sélectionné (soit passé en prop, soit choisi dans la liste)
   const [selectedAuditeurId, setSelectedAuditeurId] = useState(auditeur?.id ? String(auditeur.id) : '');
-  const [auditeurSearch, setAuditeurSearch] = useState('');
   const [dialogMode, setDialogMode] = useState(mode);
+  const [auditeurSearch] = useState('');
   const [selectedGroupeId, setSelectedGroupeId] = useState('');
   const [dateInscription, setDateInscription] = useState(() => new Date().toISOString().split('T')[0]);
   const [typeInscription, setTypeInscription] = useState('Nouvelle');
@@ -39,6 +34,7 @@ export default function InscriptionDialog({
 
   // Synchronisation lors de l'ouverture
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- remise à zéro du formulaire à chaque ouverture */
     if (auditeur) {
       setSelectedAuditeurId(String(auditeur.id));
     } else {
@@ -80,6 +76,7 @@ export default function InscriptionDialog({
 
   // Ajustement automatique du mode et du type lors de la sélection d'un auditeur
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- valeurs par défaut dérivées de l'auditeur choisi */
     if (currentActiveEnrollment) {
       // Déjà inscrit activement cette année : proposer le transfert par défaut
       setDialogMode('transfert');
@@ -191,12 +188,7 @@ export default function InscriptionDialog({
   const selectedOccupancy = selectedGroupeId ? getGroupOccupancy(Number(selectedGroupeId)) : null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <ModalOverlay onClose={() => { onClose(); }}>
       <div
         role="dialog"
         aria-modal="true"
@@ -492,6 +484,6 @@ export default function InscriptionDialog({
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

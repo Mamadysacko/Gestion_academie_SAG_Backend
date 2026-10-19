@@ -20,6 +20,8 @@ import RelevesNotes from './RelevesNotes';
 import StatistiquesNotes from './StatistiquesNotes';
 import ReglesEvaluationPanel from './ReglesEvaluationPanel';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 const sections = [
   { id: 'saisie', label: 'Saisie des notes', icon: BookOpenCheck },
@@ -101,12 +103,12 @@ async function fetchNotesData(currentUser) {
   };
 }
 
-export default function NotesModule({ onBack, currentUser }) {
+export default function NotesModule({ onBack, currentUser, initialTab }) {
   const confirm = useConfirm();
   const today = currentDateValue();
   const [data, setData] = useState(emptyData);
   const [loading, setLoading] = useState(true);
-  const [section, setSection] = useState('saisie');
+  const [section, setSection] = useState(initialTab || 'saisie');
   const [yearId, setYearId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -241,9 +243,7 @@ export default function NotesModule({ onBack, currentUser }) {
       {error && <div role="alert" className="flex items-start gap-3 border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span className="flex-1">{error}</span><button type="button" onClick={() => setError('')} aria-label="Fermer le message"><X className="h-4 w-4" /></button></div>}
       {notice && <div role="status" className="flex items-start justify-between gap-3 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><span>{notice}</span><button type="button" onClick={() => setNotice('')} aria-label="Fermer"><X className="h-4 w-4" /></button></div>}
 
-      <nav aria-label="Sections de gestion des notes" className="flex gap-1 overflow-x-auto border-b border-slate-200">
-        {sections.map((item) => { const Icon = item.icon; const active = section === item.id; return <button key={item.id} type="button" onClick={() => setSection(item.id)} aria-current={active ? 'page' : undefined} className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold transition ${active ? 'border-emerald-700 text-emerald-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'}`}><Icon className="h-4 w-4" />{item.label}</button>; })}
-      </nav>
+      <SubTabNav label="Sections de gestion des notes" items={sections} active={section} onChange={setSection} />
 
       {loading && canReadEvaluations ? <div role="status" className="border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">Chargement des données académiques…</div> : canReadEvaluations ? (
         <>
@@ -274,13 +274,13 @@ export default function NotesModule({ onBack, currentUser }) {
         </>
       ) : null}
 
-      {formOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setFormOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="evaluation-form-title" className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 p-5"><div><h2 id="evaluation-form-title" className="text-base font-bold text-slate-900">Planifier une évaluation</h2><p className="mt-1 text-xs text-slate-500">Chaque session compte {data.regles?.nb_evaluations || 3} évaluations numérotées.</p></div><button type="button" onClick={() => setFormOpen(false)} aria-label="Fermer" className="p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div><form onSubmit={handleCreateEvaluation} className="space-y-4 p-5">
+      {formOpen && <ModalOverlay onClose={() => { setFormOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="evaluation-form-title" className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 p-5"><div><h2 id="evaluation-form-title" className="text-base font-bold text-slate-900">Planifier une évaluation</h2><p className="mt-1 text-xs text-slate-500">Chaque session compte {data.regles?.nb_evaluations || 3} évaluations numérotées.</p></div><button type="button" onClick={() => setFormOpen(false)} aria-label="Fermer" className="p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div><form onSubmit={handleCreateEvaluation} className="space-y-4 p-5">
         <label className="block text-xs font-semibold text-slate-700">Session<select required value={evaluationForm.id_session} onChange={(event) => setEvaluationForm((current) => ({ ...current, id_session: event.target.value, numero: '' }))} className="mt-1 w-full border border-slate-300 bg-white px-3 py-2.5 text-sm"><option value="">Sélectionner une session</option>{sessionsForYear.map((session) => <option key={session.id} value={session.id}>{session.code} · {session.libelle} ({session.statut})</option>)}</select></label>
         <label className="block text-xs font-semibold text-slate-700">Numéro<select required value={evaluationForm.numero} disabled={!evaluationForm.id_session} onChange={(event) => setEvaluationForm((current) => ({ ...current, numero: event.target.value, libelle: current.libelle || `Évaluation ${event.target.value}` }))} className="mt-1 w-full border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:bg-slate-100"><option value="">Sélectionner</option>{freeNumbers.map((value) => <option key={value} value={value}>Évaluation {value}</option>)}</select>{evaluationForm.id_session && !freeNumbers.length && <span className="mt-1 block font-normal text-amber-700">Cette session a déjà toutes ses évaluations.</span>}</label>
         <label className="block text-xs font-semibold text-slate-700">Libellé<input required maxLength="100" value={evaluationForm.libelle} onChange={(event) => setEvaluationForm((current) => ({ ...current, libelle: event.target.value }))} placeholder="Ex. Évaluation finale" className="mt-1 w-full border border-slate-300 px-3 py-2.5 text-sm" /></label>
         <label className="block text-xs font-semibold text-slate-700">Date<input required type="date" value={evaluationForm.date_evaluation} onChange={(event) => setEvaluationForm((current) => ({ ...current, date_evaluation: event.target.value }))} className="mt-1 w-full border border-slate-300 px-3 py-2.5 text-sm" /></label>
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setFormOpen(false)} disabled={saving} className="border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-700">Annuler</button><button type="submit" disabled={saving || !evaluationForm.id_session || !evaluationForm.numero || !evaluationForm.libelle.trim()} className="inline-flex items-center gap-2 bg-emerald-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">{saving ? 'Création…' : 'Créer l’évaluation'}</button></div>
-      </form></section></div>}
+      </form></section></ModalOverlay>}
     </main>
   );
 }

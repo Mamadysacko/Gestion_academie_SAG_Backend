@@ -1,3 +1,4 @@
+import { exportTable } from '../../utils/exportExcel';
 export const ROOM_STATUSES = [
   { value: 'disponible', label: 'Disponible' },
   { value: 'indisponible', label: 'Indisponible' },
@@ -37,11 +38,5 @@ export function exportRoomsCsv(rows, filename = 'salles') {
   if (!rows.length) return;
   const headings = ['Code', 'Salle', 'Capacité', 'Statut', 'Formateur attitré', 'Groupes affectés', 'Inscrits actifs', 'Taux occupation'];
   const values = rows.map((room) => [room.code, room.libelle, room.capacite, room.displayStatus, room.trainerLabel || '', room.groupCount, room.activeLearners, room.occupancyRate == null ? '' : `${room.occupancyRate}%`]);
-  const csv = [headings, ...values].map((line) => line.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  exportTable({ filename, title: 'Registre des salles', headings, rows: values });
 }

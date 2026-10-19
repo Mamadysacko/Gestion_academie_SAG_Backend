@@ -3,6 +3,9 @@ import {
   Users, Search, Plus, Edit2, Trash2, KeyRound,
   UserCheck, UserX, Download, Mail, Phone, Shield
 } from 'lucide-react';
+import { exportTable } from '../../utils/exportExcel';
+import Pagination from '../../composant/Pagination';
+import { usePagination } from '../../composant/usePagination';
 
 export default function ListeUtilisateurs({
   users,
@@ -40,6 +43,7 @@ export default function ListeUtilisateurs({
       return matchSearch && matchRole && matchStatus;
     });
   }, [users, search, roleFilter, statusFilter]);
+  const { pageRows, pagerProps } = usePagination(filteredUsers, 25);
 
   // Export CSV
   const handleExportCSV = () => {
@@ -47,21 +51,21 @@ export default function ListeUtilisateurs({
     const headers = ['ID', 'Nom', 'Prénom', 'Email', 'Téléphone', 'Rôle', 'Statut', 'Dernière Connexion'];
     const rows = filteredUsers.map((u) => [
       u.id,
-      `"${u.nom}"`,
-      `"${u.prenom}"`,
-      `"${u.email || ''}"`,
-      `"${u.telephone || ''}"`,
-      `"${u.role_nom}"`,
+      u.nom,
+      u.prenom,
+      u.email || '',
+      u.telephone || '',
+      u.role_nom,
       u.actif === 1 ? 'Actif' : 'Suspendu',
-      `"${u.last_login || ''}"`,
+      u.last_login || '',
     ]);
 
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Utilisateurs_Academie_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
+    exportTable({
+      filename: `Utilisateurs_Academie_${new Date().toISOString().slice(0, 10)}`,
+      title: 'Liste des utilisateurs',
+      headings: headers,
+      rows,
+    });
   };
 
   return (
@@ -165,7 +169,7 @@ export default function ListeUtilisateurs({
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((u) => {
+              pageRows.map((u) => {
                 const isActif = u.actif === 1;
                 const roleObj = roles.find((r) => r.id === u.role_id);
                 return (
@@ -266,6 +270,7 @@ export default function ListeUtilisateurs({
             )}
           </tbody>
         </table>
+        <Pagination {...pagerProps} />
       </div>
     </div>
   );

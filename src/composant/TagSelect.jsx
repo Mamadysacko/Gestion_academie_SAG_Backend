@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 
@@ -29,6 +30,9 @@ export default function TagSelect({
   const id = useId();
   const rootRef = useRef(null);
   const searchRef = useRef(null);
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
+  const [box, setBox] = useState(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -40,9 +44,33 @@ export default function TagSelect({
     return options.filter((option) => !term || normalize(option.label).includes(term)).slice(0, 80);
   }, [options, query]);
 
+  // Position de la liste : calculée sur le champ, au-dessus s'il manque de la place en dessous.
+  const measure = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const below = window.innerHeight - rect.bottom - 12;
+    const above = rect.top - 12;
+    const placeAbove = below < 240 && above > below;
+    const available = Math.max(160, placeAbove ? above : below);
+    const width = Math.min(Math.max(rect.width, 220), window.innerWidth - 16);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+    setBox({ left, width, available, ...(placeAbove ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }) });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => { window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
+  }, [open, measure]);
+
   useEffect(() => {
     if (!open) return undefined;
-    const onDown = (event) => { if (!rootRef.current?.contains(event.target)) { setOpen(false); setQuery(''); } };
+    const onDown = (event) => {
+      if (!rootRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) { setOpen(false); setQuery(''); }
+    };
     document.addEventListener('mousedown', onDown);
     window.setTimeout(() => searchRef.current?.focus(), 30);
     return () => document.removeEventListener('mousedown', onDown);
@@ -78,6 +106,7 @@ export default function TagSelect({
     <div ref={rootRef} className={`relative block min-w-44 flex-1 ${className}`} onKeyDown={onKeyDown}>
       {label && <span id={`${id}-label`} className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}{required && <span className="text-rose-600"> *</span>}</span>}
       <div
+        ref={triggerRef}
         role="combobox"
         tabIndex={disabled ? -1 : 0}
         aria-labelledby={label ? `${id}-label` : undefined}
@@ -109,21 +138,24 @@ export default function TagSelect({
         <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
 
+      {createPortal(
       <AnimatePresence>
-        {open && (
+        {open && box && (
           <motion.div
+            ref={popoverRef}
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.14 }}
-            className="absolute left-0 right-0 z-40 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+            style={{ position: 'fixed', zIndex: 480, left: box.left, width: box.width, top: box.top, bottom: box.bottom }}
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
           >
             <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
               <Search className="h-4 w-4 text-slate-400" />
               <input ref={searchRef} value={query} onChange={(event) => { setQuery(event.target.value); setActive(0); }} placeholder="Rechercher…" aria-label="Rechercher dans la liste" className="w-full bg-transparent text-sm outline-none" />
               {multiple && values.length > 0 && <button type="button" onClick={() => onChange([])} className="shrink-0 text-[11px] font-semibold text-slate-500 hover:text-rose-700">Tout retirer</button>}
             </div>
-            <ul id={`${id}-list`} role="listbox" aria-multiselectable={multiple} className="max-h-64 overflow-y-auto py-1">
+            <ul id={`${id}-list`} role="listbox" aria-multiselectable={multiple} style={{ maxHeight: Math.min(256, Math.max(96, box.available - 56)) }} className="overflow-y-auto overscroll-contain py-1">
               {filtered.map((option, index) => {
                 const isSelected = values.includes(String(option.value));
                 return (
@@ -144,7 +176,9 @@ export default function TagSelect({
             </ul>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body,
+      )}
     </div>
   );
 }

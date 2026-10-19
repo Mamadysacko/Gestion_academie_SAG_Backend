@@ -21,6 +21,7 @@ import FormAuditeurDialog from './FormAuditeurDialog';
 import StatutChangeDialog from './StatutChangeDialog';
 import DossierAuditeurComplet from './DossierAuditeurComplet';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
 
 const TABS = [
   { id: 'liste', label: 'Liste des auditeurs', icon: Users },
@@ -36,11 +37,11 @@ const STATUS_TO_LEGACY = { active: 'Active', terminee: 'Terminée', abandonnee: 
 const STATUS_TO_DATABASE = { Active: 'active', Terminée: 'terminee', Abandonnée: 'abandonnee', Annulée: 'annulee' };
 const list = (response) => Array.isArray(response?.data) ? response.data : [];
 
-export default function AuditeursInscriptionsModule({ onBack, currentUser }) {
+export default function AuditeursInscriptionsModule({ onBack, currentUser, initialTab }) {
   const confirm = useConfirm();
   const [data, setData] = useState(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('liste');
+  const [activeTab, setActiveTab] = useState(initialTab || 'liste');
 
   // Notices and errors
   const [notice, setNotice] = useToastNotice();
@@ -308,28 +309,7 @@ export default function AuditeursInscriptionsModule({ onBack, currentUser }) {
       )}
 
       {/* Navigation Sub-Tabs */}
-      <nav aria-label="Sous-sections Auditeurs & Inscriptions" className="flex gap-2 overflow-x-auto border-b border-slate-200 pb-px">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => { setActiveTab(tab.id); setError(''); }}
-              aria-current={isActive ? 'page' : undefined}
-              className={`inline-flex min-h-10 shrink-0 items-center gap-2 border-b-2 px-4 text-xs font-bold transition ${
-                isActive
-                  ? 'border-teal-700 text-teal-900 bg-white rounded-t-lg'
-                  : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <SubTabNav label="Sous-sections Auditeurs & Inscriptions" items={TABS} active={activeTab} onChange={(id) => { setActiveTab(id); setError(''); }} />
 
       {/* Tab Panels */}
       {loading && <div role="status" className="border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Chargement des données depuis le serveur…</div>}

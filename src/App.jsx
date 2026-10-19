@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import PageConnexion from './page_connexion';
 import AdminDashboard from './Admin/AdminDashboard';
 import Sidebar from './composant/Sidebar';
-import CentreRappels from './composant/CentreRappels';
+import TopBar from './composant/TopBar';
+import ApiActivityBar from './composant/ApiActivityBar';
+import ReturnBar from './aide/ReturnBar';
+import { NavContext } from './composant/navContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { authApi } from './config/apiService';
 
@@ -10,6 +13,22 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  // Sous-onglet demandé par un lien (aide) ; `nonce` force la réouverture même si l'écran est déjà affiché.
+  const [navTarget, setNavTarget] = useState({ sub: null, nonce: 0, action: null });
+  // Écran d'origine quand l'utilisateur est parti compléter un prérequis : une barre propose d'y revenir.
+  const [returnTo, setReturnTo] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('ages-sidebar-collapsed') === '1'; } catch { return false; }
+  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      try { window.localStorage.setItem('ages-sidebar-collapsed', next ? '1' : '0'); } catch { /* préférence non mémorisée */ }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -44,7 +63,9 @@ function App() {
         const response = await authApi.me();
         if (active && response?.success && response.data) {
           const user = { ...response.data, role: response.data.role_code };
-          setCurrentUser(user);
+          // Garder la même référence tant que rien n'a changé : sinon chaque minuteur
+          // relancerait le chargement complet de l'écran ouvert.
+          setCurrentUser((current) => (JSON.stringify(current) === JSON.stringify(user) ? current : user));
         }
       } catch (error) {
         if (active && error.status === 401) {
@@ -94,22 +115,33 @@ function App() {
     return (currentUser?.permissions?.[module] || []).includes(action);
   }, [currentUser]);
 
-  const navigateTo = useCallback((tab) => {
+  const navigateTo = useCallback((tab, sub = null, options = {}) => {
     const isTrainer = currentUser?.role_code === 'formateur' || currentUser?.role === 'formateur';
-    if (tab === 'profil') {
+    const open = () => {
+      setNavTarget((current) => ({ sub, nonce: sub ? current.nonce + 1 : current.nonce, action: options.action || null }));
+      if (options.returnTo) setReturnTo(options.returnTo);
+      else setReturnTo((current) => (current && current.moduleId === tab && (current.tabId || null) === sub ? null : current));
       setActiveTab(tab);
+    };
+    if (tab === 'profil' || tab === 'aide') {
+      open();
       return;
     }
     if (tab === 'espace-formateur') {
-      if (isTrainer) setActiveTab(tab);
+      if (isTrainer) open();
       return;
     }
-    const module = tab === 'overview' ? null : tab === 'parametres' ? 'parametres' : tab;
-    if (module === null || canAccessModule(module)) setActiveTab(tab);
+    const modules = tab === 'overview' ? null : tab === 'rapports' ? ['organisation-pedagogique'] : tab === 'parametres' ? ['parametres', 'organisation-pedagogique'] : [tab];
+    if (modules === null || modules.some((module) => canAccessModule(module))) open();
   }, [canAccessModule, currentUser]);
 
   if (authLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">Vérification de la session…</div>;
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 text-sm text-slate-600">
+        <span className="h-10 w-10 animate-spin rounded-full border-4 border-brand-gold-light border-t-brand-gold" aria-hidden="true" />
+        Vérification de la session…
+      </div>
+    );
   }
 
   if (!currentUser) {
@@ -117,30 +149,49 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-800 md:flex-row">
-      {/* Sidebar Latérale Professionnelle */}
-      <Sidebar 
-        currentUser={currentUser} 
-        onLogout={handleLogout} 
-        activeTab={activeTab} 
+    <NavContext.Provider value={navigateTo}>
+    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-800">
+      <ApiActivityBar />
+      <Sidebar
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        activeTab={activeTab}
         setActiveTab={navigateTo}
+        collapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
-      {/* Zone de contenu principal sur fond lumineux clair */}
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            <AdminDashboard
-              currentUser={currentUser}
-              activeTab={activeTab}
-              setActiveTab={navigateTo}
-              onUserUpdated={setCurrentUser}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </main>
-      <CentreRappels currentUser={currentUser} onNavigate={navigateTo} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          currentUser={currentUser}
+          activeTab={activeTab}
+          onNavigate={navigateTo}
+          onOpenMenu={() => setMobileMenuOpen(true)}
+        />
+
+        {returnTo && (
+          <ReturnBar returnTo={returnTo} currentUser={currentUser} onReturn={() => navigateTo(returnTo.moduleId, returnTo.tabId || null)} onDismiss={() => setReturnTo(null)} />
+        )}
+
+        <main className="mx-auto w-full min-w-0 max-w-[1680px] flex-1 p-3 sm:p-5 lg:p-8">
+          <AnimatePresence mode="wait">
+            <motion.div key={`${activeTab}:${navTarget.nonce}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
+              <AdminDashboard
+                currentUser={currentUser}
+                activeTab={activeTab}
+                subTab={navTarget.sub}
+                navAction={navTarget.action}
+                setActiveTab={navigateTo}
+                onUserUpdated={setCurrentUser}
+              />
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
+    </NavContext.Provider>
   );
 }
 

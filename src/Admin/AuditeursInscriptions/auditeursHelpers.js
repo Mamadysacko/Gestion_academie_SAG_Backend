@@ -1,3 +1,4 @@
+import { exportGrid, exportTable } from '../../utils/exportExcel';
 /**
  * Helpers pour le module Auditeurs & Inscriptions
  */
@@ -314,7 +315,6 @@ export function exportInscriptionsToCSV(inscriptionsList, yearLibelle = '2026-20
     'Motif / Observation',
   ];
 
-  const escapeCell = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
   const rows = inscriptionsList.map((item) => {
     return [
       item.student?.matricule || '',
@@ -334,20 +334,13 @@ export function exportInscriptionsToCSV(inscriptionsList, yearLibelle = '2026-20
     ];
   });
 
-  const csvContent = [
-    headers.map(escapeCell).join(';'),
-    ...rows.map((row) => row.map(escapeCell).join(';')),
-  ].join('\r\n');
-
-  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `inscriptions_${yearLibelle.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  exportTable({
+    filename: `inscriptions_${yearLibelle.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`,
+    title: 'Liste des inscriptions',
+    subtitle: `Année scolaire ${yearLibelle}`,
+    headings: headers,
+    rows,
+  });
 }
 
 /**
@@ -388,33 +381,20 @@ export function exportAuditeursToCSV(auditeursDetailedList, yearLibelle = '2026-
     ];
   });
 
-  const escapeCell = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-  const csvContent = [
-    headers.map(escapeCell).join(';'),
-    ...rows.map((row) => row.map(escapeCell).join(';')),
-  ].join('\r\n');
-
-  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `auditeurs_${yearLibelle.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  exportTable({
+    filename: `auditeurs_${yearLibelle.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`,
+    title: 'Liste des auditeurs',
+    subtitle: `Année scolaire ${yearLibelle}`,
+    headings: headers,
+    rows,
+  });
 }
 
 /**
  * Export du Bilan Statistique Académique en CSV
  */
 export function exportStatistiquesToCSV(stats, yearLibelle = '2026-2027') {
-  const escapeCell = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-
   const lines = [
-    ['BILAN STATISTIQUE ACADÉMIQUE', yearLibelle],
-    ['Date d\'extraction', new Date().toLocaleDateString('fr-FR')],
-    [],
     ['INDICATEUR', 'VALEUR', 'DÉTAIL'],
     ['Total Auditeurs enregistrés (base)', stats.totalAuditeurs, 'Effectif global'],
     ['Auditeurs inscrits (année active)', stats.totalInscritsAnnee, 'Ayant au moins 1 inscription'],
@@ -458,14 +438,10 @@ export function exportStatistiquesToCSV(stats, yearLibelle = '2026-2027') {
     ]),
   ];
 
-  const csvContent = lines.map((row) => row.map(escapeCell).join(';')).join('\r\n');
-  const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `bilan_statistiques_${yearLibelle.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  exportGrid({
+    filename: `bilan_statistiques_${yearLibelle.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`,
+    title: 'Bilan statistique académique',
+    subtitle: `Année scolaire ${yearLibelle}`,
+    lines,
+  });
 }

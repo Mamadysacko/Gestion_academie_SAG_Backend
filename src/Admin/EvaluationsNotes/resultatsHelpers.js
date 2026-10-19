@@ -1,3 +1,4 @@
+import { exportTable } from '../../utils/exportExcel';
 export const RESULT_LABELS = {
   admis: 'Admis',
   non_admis: 'Non admis',
@@ -30,14 +31,6 @@ export function averageOnFour(points, maximum) {
   return Math.round((points / maximum) * 400) / 100;
 }
 
-export function downloadCsv(filename, headings, lines) {
-  const csv = [headings, ...lines]
-    .map((line) => line.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\r\n');
-  const url = URL.createObjectURL(new Blob([String.fromCharCode(0xfeff) + csv], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+export function downloadCsv(filename, headings, lines, title = 'Situation des notes') {
+  exportTable({ filename, title, headings, rows: lines });
 }

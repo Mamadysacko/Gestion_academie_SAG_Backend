@@ -1,13 +1,18 @@
 import { Download, Eye } from 'lucide-react';
 import { formatDate, STATUS_OPTIONS } from './presenceHelpers';
 import SearchableSelect from '../../composant/SearchableSelect';
+import Pagination from '../../composant/Pagination';
+import { usePagination } from '../../composant/usePagination';
+import { observationText } from '../../utils/leave';
 
 export function PresenceTable({ rows, onStatusChange, onOpenProfile, showDate = true, showProfileAction = true, canEdit = true }) {
+  const { pageRows, pagerProps } = usePagination(rows, 50);
   if (!rows.length) {
     return <div className="px-5 py-12 text-center text-sm text-slate-500">Aucune présence ne correspond à ces critères.</div>;
   }
 
   return (
+    <>
     <div className="overflow-x-auto">
       <table className="w-full min-w-[980px] text-left text-sm">
         <thead className="bg-slate-50 text-[10px] uppercase text-slate-500">
@@ -24,7 +29,7 @@ export function PresenceTable({ rows, onStatusChange, onOpenProfile, showDate = 
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {rows.map((row) => (
+          {pageRows.map((row) => (
             <tr key={`${row.id_inscription}-${row.date_presence}`} className="align-top hover:bg-slate-50/70">
               <td className="px-4 py-3">
                 {onOpenProfile ? (
@@ -57,7 +62,7 @@ export function PresenceTable({ rows, onStatusChange, onOpenProfile, showDate = 
                   {STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
                 </select>
               </td>
-              <td className="max-w-48 px-4 py-3 text-xs leading-5 text-slate-500">{row.observation || '—'}</td>
+              <td className="max-w-48 px-4 py-3 text-xs leading-5 text-slate-500">{observationText(row) || '—'}</td>
               {showProfileAction && <td className="px-4 py-3 text-right">
                 <button type="button" onClick={() => onOpenProfile?.(row.auditeur?.id)} title="Consulter le dossier complet" aria-label="Consulter le dossier complet" className="inline-flex h-8 w-8 items-center justify-center border border-slate-200 text-slate-500 hover:border-teal-300 hover:text-teal-800">
                   <Eye className="h-4 w-4" />
@@ -68,6 +73,8 @@ export function PresenceTable({ rows, onStatusChange, onOpenProfile, showDate = 
         </tbody>
       </table>
     </div>
+    <Pagination {...pagerProps} />
+    </>
   );
 }
 

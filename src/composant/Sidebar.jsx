@@ -1,219 +1,214 @@
-import { 
-  School, 
-  LogOut, 
-  Building2, 
-  GraduationCap, 
-  LayoutDashboard,
-  Users,
-  CalendarDays,
-  BookOpen,
-  Calendar,
-  Award,
-  ClipboardList,
-  ChevronRight,
-  Sparkles,
-  CheckSquare,
-  FileBarChart,
-  Settings,
-  BookMarked,
-  UserCheck,
-  Shield,
-  Languages,
-} from 'lucide-react';
+import { useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, Languages, LogOut, X } from 'lucide-react';
 import { useLanguage } from '../i18n/useLanguage';
+import { buildMenuItems, roleLabel } from './menuConfig';
+import logoAges from '../assets/logo-ages.png';
+import logoSag from '../assets/logo-sag.png';
 
-const Sidebar = ({ currentUser, onLogout, activeTab, setActiveTab }) => {
-  const { language, setLanguage, t } = useLanguage();
+const EXPANDED = 280;
+const COLLAPSED = 80;
 
-  const getRoleConfig = (role) => {
-    switch (role) {
-      case 'admin':
-        return {
-          label: language === 'en' ? 'Administrator' : 'Administrateur',
-          roleBadge: 'bg-purple-100 text-purple-700 border-purple-200',
-          activeTabClass: 'bg-purple-600 text-white shadow-md shadow-purple-200 font-semibold',
-          hoverClass: 'hover:bg-purple-50 text-slate-600 hover:text-purple-700',
-          menuItems: [
-            { id: 'overview', label: t('dashboard'), icon: LayoutDashboard },
-            { id: 'organisation-pedagogique', label: t('pedagogicalOrganization'), icon: BookOpen },
-            { id: 'emplois-temps', label: t('schedules'), icon: CalendarDays },
-            { id: 'auditeurs', label: t('auditorsAndRegistrations'), icon: GraduationCap },
-            { id: 'formateurs', label: t('trainers'), icon: UserCheck },
-            { id: 'salles', label: t('rooms'), icon: Building2 },
-            { id: 'evaluations', label: t('evaluationsAndGrades'), icon: ClipboardList },
-            { id: 'presences', label: t('attendance'), icon: CheckSquare },
-            { id: 'utilisateurs', label: t('usersAndRoles'), icon: Shield },
-            { id: 'parametres', label: t('settings'), icon: Settings },
-          ]
-        };
-      case 'directeur':
-        return {
-          label: language === 'en' ? 'Academic Director' : 'Directeur Pédagogique',
-          roleBadge: 'bg-blue-100 text-blue-700 border-blue-200',
-          activeTabClass: 'bg-blue-600 text-white shadow-md shadow-blue-200 font-semibold',
-          hoverClass: 'hover:bg-blue-50 text-slate-600 hover:text-blue-700',
-          menuItems: [
-            { id: 'overview', label: `1. 🏠 ${t('dashboard')}`, icon: LayoutDashboard },
-            { id: 'academie', label: `2. 🎓 ${language === 'en' ? 'Academy' : 'Académie'}`, icon: BookOpen },
-            { id: 'auditeurs', label: `3. 👥 ${language === 'en' ? 'Auditors' : 'Auditeurs'}`, icon: Users },
-            { id: 'pedagogie', label: `4. 👨‍🏫 ${language === 'en' ? 'Teaching' : 'Pédagogie'}`, icon: GraduationCap },
-            { id: 'presences', label: `5. 🟢 ${t('attendance')}`, icon: CheckSquare },
-            { id: 'evaluations', label: `6. 📝 ${language === 'en' ? 'Assessments' : 'Évaluations'}`, icon: Award },
-            { id: 'resultats', label: `7. 📊 ${language === 'en' ? 'Results & Reports' : 'Résultats & Rapports'}`, icon: FileBarChart },
-            { id: 'profil', label: `8. 👤 ${language === 'en' ? 'My Profile' : 'Mon Profil'}`, icon: UserCheck },
-          ]
-        };
-      case 'formateur':
-        return {
-          label: language === 'en' ? 'Trainer' : 'Formateur',
-          roleBadge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-          activeTabClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-200 font-semibold',
-          hoverClass: 'hover:bg-emerald-50 text-slate-600 hover:text-emerald-700',
-          menuItems: [
-            { id: 'overview', label: `1. 🏠 ${t('dashboard')}`, icon: LayoutDashboard },
-            { id: 'auditeurs', label: `2. 👥 ${language === 'en' ? 'My Auditors' : 'Mes Auditeurs'}`, icon: Users },
-            { id: 'planning', label: `3. 📅 ${language === 'en' ? 'My Schedule' : 'Mon Planning'}`, icon: Calendar },
-            { id: 'presences', label: `4. 🟢 ${t('attendance')}`, icon: CheckSquare },
-            { id: 'evaluations', label: `5. 📝 ${language === 'en' ? 'Assessments' : 'Évaluations'}`, icon: Award },
-            { id: 'resultats', label: `6. 📊 ${language === 'en' ? 'Results' : 'Résultats'}`, icon: FileBarChart },
-            { id: 'matieres', label: `7. 📚 ${language === 'en' ? 'My Subjects' : 'Mes Matières'}`, icon: BookMarked },
-            { id: 'profil', label: `8. 👤 ${language === 'en' ? 'My Profile' : 'Mon Profil'}`, icon: UserCheck },
-          ]
-        };
-      default:
-        return {
-          label: role,
-          roleBadge: 'bg-slate-100 text-slate-700',
-          activeTabClass: 'bg-blue-600 text-white',
-          hoverClass: 'hover:bg-slate-100',
-          menuItems: []
-        };
-    }
-  };
-
-  const config = getRoleConfig(currentUser?.role_code || currentUser?.role);
-  const allModules = [
-    { id: 'overview', label: t('dashboard'), icon: LayoutDashboard },
-    { id: 'organisation-pedagogique', label: t('pedagogicalOrganization'), icon: BookOpen },
-    { id: 'emplois-temps', label: t('schedules'), icon: CalendarDays },
-    { id: 'auditeurs', label: t('auditorsAndRegistrations'), icon: GraduationCap },
-    { id: 'formateurs', label: t('trainers'), icon: UserCheck },
-    { id: 'salles', label: t('rooms'), icon: Building2 },
-    { id: 'evaluations', label: t('evaluationsAndGrades'), icon: ClipboardList },
-    { id: 'presences', label: t('attendance'), icon: CheckSquare },
-    { id: 'utilisateurs', label: t('usersAndRoles'), icon: Shield },
-    { id: 'parametres', label: t('settings'), icon: Settings },
-    { id: 'profil', label: t('profile'), icon: UserCheck },
-  ];
-  const isTrainer = currentUser?.role_code === 'formateur' || currentUser?.role === 'formateur';
-  const availableModules = isTrainer
-    ? [
-      { id: 'espace-formateur', label: t('trainerSpace'), icon: Calendar },
-      ...allModules.filter((item) => item.id !== 'overview' && item.id !== 'profil'),
-      allModules.find((item) => item.id === 'profil'),
-    ]
-    : allModules;
-  const menuItems = availableModules.filter((item) =>
-    item.id === 'overview' ||
-    item.id === 'profil' ||
-    item.id === 'espace-formateur' ||
-    currentUser?.role === 'admin' ||
-    currentUser?.role_code === 'admin' ||
-    (currentUser?.permissions?.[item.id] || []).includes('read')
+/** Info-bulle affichée à droite d'une icône lorsque la barre est réduite. */
+function Tip({ children }) {
+  return (
+    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-brand-charcoal px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg ring-1 ring-brand-gold/40 transition-opacity group-hover/item:opacity-100 group-focus-visible/item:opacity-100">
+      {children}
+    </span>
   );
+}
+
+function SidebarBody({ currentUser, onLogout, activeTab, setActiveTab, collapsed, onToggle, onClose, mobile }) {
+  const { language, setLanguage, t } = useLanguage();
+  const menuItems = buildMenuItems(currentUser, t);
+  const compact = collapsed && !mobile;
+  const initials = (currentUser?.email || '??').substring(0, 2).toUpperCase();
+
+  const go = (id) => { setActiveTab(id); onClose?.(); };
 
   return (
-    <aside className="flex w-full shrink-0 flex-col justify-between border-b border-slate-200 bg-white shadow-sm md:sticky md:top-0 md:h-screen md:w-72 md:border-b-0 md:border-r md:z-30">
-      {/* Top Brand Header */}
-      <div>
-        <div className="p-5 border-b border-slate-100 flex items-center space-x-3">
-          <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl shadow-md text-white">
-            <School className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="font-extrabold text-slate-800 text-base leading-tight">{t('academyERP')}</h1>
-            <p className="text-[11px] text-slate-400 font-medium">{t('frenchAndEnglish')}</p>
-          </div>
+    <div className="relative flex h-full min-h-0 flex-col bg-brand-charcoal text-slate-200">
+      {/* Marque : logo AGES, en tête de la barre */}
+      <div className="relative flex items-center gap-2 border-b border-white/10 p-3">
+        <div className={`flex h-14 items-center overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-brand-gold/40 transition-all ${compact ? 'mx-auto w-14' : 'flex-1 justify-center'}`}>
+          <img
+            src={logoAges}
+            alt="AGES — Entreprise Albert Global Services"
+            className={compact ? 'h-[70px] w-auto max-w-none shrink-0 -translate-y-1' : 'h-12 w-full object-contain px-2'}
+          />
+        </div>
+        {mobile && (
+          <button type="button" onClick={onClose} aria-label="Fermer le menu" className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+
+      {/* Compte connecté */}
+      <button
+        type="button"
+        onClick={() => go('profil')}
+        aria-label={t('profile')}
+        className={`group/item relative m-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2.5 text-left transition hover:border-brand-gold/60 hover:bg-white/10 ${compact ? 'justify-center' : ''}`}
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gold to-brand-gold-light text-sm font-extrabold text-brand-charcoal">{initials}</span>
+        {!compact && (
+          <span className="min-w-0">
+            <span className="mb-0.5 inline-block rounded-full border border-brand-gold/50 bg-brand-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-gold-light">{roleLabel(currentUser, language)}</span>
+            <span className="block truncate text-xs font-medium text-slate-300">{currentUser?.email}</span>
+          </span>
+        )}
+        {compact && <Tip>{currentUser?.email}</Tip>}
+      </button>
+
+      {/* Navigation */}
+      <nav aria-label={t('managementModules')} className="sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 pb-3">
+        {!compact && (
+          <p className="mb-2 px-3 pt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{t('managementModules')}</p>
+        )}
+        {compact && <span className="mx-auto mb-2 block h-px w-8 bg-white/10" />}
+        {menuItems.map((item) => {
+          const ItemIcon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => go(item.id)}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={item.label}
+              title={compact ? item.label : undefined}
+              className={`group/item relative flex w-full items-center gap-3 rounded-xl py-2.5 text-sm transition-colors ${compact ? 'justify-center px-0' : 'px-3'} ${isActive ? 'font-semibold text-brand-charcoal' : 'text-slate-300 hover:bg-white/8 hover:text-white'}`}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId={mobile ? 'sidebar-active-mobile' : 'sidebar-active'}
+                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-brand-gold-light to-brand-gold shadow-lg shadow-brand-gold/20"
+                  transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                />
+              )}
+              <ItemIcon className="relative h-[18px] w-[18px] shrink-0" />
+              {!compact && <span className="relative min-w-0 flex-1 truncate text-left">{item.label}</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Pied : logo SAG (partenaire), langue, déconnexion */}
+      <div className="space-y-2.5 border-t border-white/10 p-3">
+        <div className={`flex items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-brand-gold/40 ${compact ? 'mx-auto h-14 w-14' : 'aspect-[2.5/1] w-full'}`} title="Société AngloGold Ashanti de Guinée (SAG)">
+          {compact
+            ? <span role="img" aria-label="Société AngloGold Ashanti de Guinée — SAG" className="block h-full w-full bg-no-repeat" style={{ backgroundImage: `url(${logoSag})`, backgroundSize: "210%", backgroundPosition: "6% 52%" }} />
+            : <img src={logoSag} alt="Société AngloGold Ashanti de Guinée — SAG SA, Siguiri" className="w-full object-cover" />}
         </div>
 
-        {/* User Profile Card */}
+        {!compact && (
+          <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-gold-light/80">SAG Education Project · Siguiri</p>
+        )}
+
+        {compact ? (
+          <button
+            type="button"
+            onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')}
+            aria-label={t('language')}
+            className="group/item relative flex w-full items-center justify-center rounded-xl py-2.5 text-xs font-bold uppercase text-slate-300 transition hover:bg-white/10 hover:text-white"
+          >
+            {language}
+            <Tip>{t('language')} : {language === 'fr' ? t('french') : t('english')}</Tip>
+          </button>
+        ) : (
+          <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-300">
+            <Languages className="h-4 w-4 text-brand-gold-light" />
+            <span className="flex-1">{t('language')}</span>
+            <select
+              aria-label={t('language')}
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+              className="rounded-md border border-white/15 bg-brand-charcoal px-2 py-1 text-xs text-white"
+            >
+              <option value="fr">{t('french')}</option>
+              <option value="en">{t('english')}</option>
+            </select>
+          </label>
+        )}
+
         <button
           type="button"
-          onClick={() => setActiveTab('profil')}
-          className="p-3.5 mx-3 my-3 w-[calc(100%-1.5rem)] text-left bg-slate-50 border border-slate-100 rounded-2xl transition hover:border-teal-200 hover:bg-teal-50/50"
-          aria-label={t('profile')}
-        >
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs">
-              {currentUser?.email?.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="overflow-hidden">
-              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase mb-0.5 ${config.roleBadge}`}>
-                {currentUser?.role_nom || config.label}
-              </span>
-              <p className="text-xs font-semibold text-slate-700 truncate">{currentUser?.email}</p>
-            </div>
-          </div>
-        </button>
-
-        {/* Navigation Menu */}
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:max-h-[calc(100vh-230px)] md:flex-col md:space-y-1 md:overflow-y-auto md:pb-0">
-          <p className="mb-2 hidden px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 md:block">
-            {t('managementModules')}
-          </p>
-          {menuItems.map((item) => {
-            const ItemIcon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                aria-current={isActive ? 'page' : undefined}
-                className={`flex w-auto shrink-0 items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-all duration-200 md:w-full ${
-                  isActive ? config.activeTabClass : `${config.hoverClass}`
-                }`}
-              >
-                <div className="flex items-center space-x-2.5 truncate">
-                  <ItemIcon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                </div>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80 shrink-0" />}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Bottom Footer & Logout */}
-      <div className="p-4 border-t border-slate-100 space-y-2.5">
-        <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl text-[11px] text-blue-700 flex items-center space-x-2">
-          <Sparkles className="w-4 h-4 shrink-0 text-blue-600" />
-          <span>{t('schoolYear')} : <strong>2025-2026</strong></span>
-        </div>
-
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
-          <Languages className="h-4 w-4 text-slate-500" />
-          <span className="flex-1">{t('language')}</span>
-          <select
-            aria-label={t('language')}
-            value={language}
-            onChange={(event) => setLanguage(event.target.value)}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs"
-          >
-            <option value="fr">{t('french')}</option>
-            <option value="en">{t('english')}</option>
-          </select>
-        </label>
-
-        <button
           onClick={onLogout}
-          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 rounded-xl text-xs font-semibold transition-all border border-slate-200 hover:border-red-200"
+          aria-label={t('logout')}
+          className={`group/item relative flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-slate-200 transition hover:border-brand-red hover:bg-brand-red hover:text-white ${compact ? '' : 'px-4'}`}
         >
-          <LogOut className="w-4 h-4" />
-          <span>{t('logout')}</span>
+          <LogOut className="h-4 w-4" />
+          {!compact && <span>{t('logout')}</span>}
+          {compact && <Tip>{t('logout')}</Tip>}
         </button>
       </div>
-    </aside>
+
+      {/* Bouton de réduction (ordinateur uniquement) */}
+      {!mobile && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Déployer la barre latérale' : 'Réduire la barre latérale vers la gauche'}
+          aria-expanded={!collapsed}
+          title={collapsed ? 'Déployer' : 'Réduire'}
+          className="absolute -right-3.5 top-[4.6rem] z-40 flex h-7 w-7 items-center justify-center rounded-full border border-brand-gold bg-brand-charcoal text-brand-gold-light shadow-lg transition hover:bg-brand-gold hover:text-brand-charcoal"
+        >
+          <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Barre latérale : réductible vers la gauche (icônes seules) sur ordinateur, tiroir
+ * coulissant sur mobile et tablette.
+ */
+const Sidebar = ({ currentUser, onLogout, activeTab, setActiveTab, collapsed, onToggle, mobileOpen, onCloseMobile }) => {
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') onCloseMobile(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen, onCloseMobile]);
+
+  const shared = { currentUser, onLogout, activeTab, setActiveTab };
+
+  return (
+    <>
+      {/* Ordinateur */}
+      <motion.aside
+        initial={false}
+        animate={{ width: collapsed ? COLLAPSED : EXPANDED }}
+        transition={{ type: 'spring', stiffness: 360, damping: 36 }}
+        className="sticky top-0 z-40 hidden h-screen shrink-0 border-r border-brand-gold/30 shadow-xl lg:block print:hidden"
+      >
+        <SidebarBody {...shared} collapsed={collapsed} onToggle={onToggle} />
+      </motion.aside>
+
+      {/* Mobile et tablette : tiroir */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-[300] lg:hidden print:hidden">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={onCloseMobile}
+              className="absolute inset-0 bg-brand-charcoal/60 backdrop-blur-sm"
+              aria-hidden="true"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+              className="absolute inset-y-0 left-0 w-[min(20rem,86vw)] shadow-2xl"
+              aria-label="Menu principal"
+            >
+              <SidebarBody {...shared} collapsed={false} mobile onClose={onCloseMobile} />
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

@@ -1,1 +1,359 @@
 @import "tailwindcss";
+
+/*
+ * Charte graphique AGES / SAG
+ * ---------------------------------------------------------------------------
+ * Palette de marque (logos AGES et AngloGold Ashanti) :
+ *   Noir charbon #1F1F20 · Or profond #A97324 · Or clair #F5D482 · Or AngloGold #A96C32
+ *   Brun bordeaux #572A27 · Vert vif #39C832 · Jaune #F2D719 · Rouge #C82927 · Blanc #FFFFFF
+ *
+ * Les échelles de Tailwind sont redéfinies pour que tous les écrans existants adoptent la
+ * charte sans retouche : les teintes « froides » (teal, blue, indigo, purple…) deviennent
+ * l'or de la marque, les gris (slate) un neutre chaud basé sur le noir charbon, et les
+ * couleurs sémantiques (succès, alerte, erreur) restent le vert, le jaune et le rouge de la charte.
+ */
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* Marque (utilisables directement : bg-brand-charcoal, text-brand-gold…) */
+  --color-brand-charcoal: #1F1F20;
+  --color-brand-gold: #A97324;
+  --color-brand-gold-light: #F5D482;
+  --color-brand-anglo: #A96C32;
+  --color-brand-bordeaux: #572A27;
+  --color-brand-green: #39C832;
+  --color-brand-yellow: #F2D719;
+  --color-brand-red: #C82927;
+
+  /* Neutres chauds (base : noir charbon) */
+  --color-slate-50: #F8F7F5;
+  --color-slate-100: #F0EEEA;
+  --color-slate-200: #E2DFD9;
+  --color-slate-300: #CBC7BF;
+  --color-slate-400: #9D988E;
+  --color-slate-500: #706C64;
+  --color-slate-600: #56534D;
+  --color-slate-700: #3E3C39;
+  --color-slate-800: #2B2A2A;
+  --color-slate-900: #1F1F20;
+  --color-slate-950: #141415;
+  --color-gray-50: #F8F7F5;
+  --color-gray-100: #F0EEEA;
+  --color-gray-200: #E2DFD9;
+  --color-gray-300: #CBC7BF;
+  --color-gray-400: #9D988E;
+  --color-gray-500: #706C64;
+  --color-gray-600: #56534D;
+  --color-gray-700: #3E3C39;
+  --color-gray-800: #2B2A2A;
+  --color-gray-900: #1F1F20;
+  --color-gray-950: #141415;
+  --color-zinc-50: #F8F7F5;
+  --color-zinc-100: #F0EEEA;
+  --color-zinc-200: #E2DFD9;
+  --color-zinc-300: #CBC7BF;
+  --color-zinc-400: #9D988E;
+  --color-zinc-500: #706C64;
+  --color-zinc-600: #56534D;
+  --color-zinc-700: #3E3C39;
+  --color-zinc-800: #2B2A2A;
+  --color-zinc-900: #1F1F20;
+  --color-zinc-950: #141415;
+  --color-stone-50: #F8F7F5;
+  --color-stone-100: #F0EEEA;
+  --color-stone-200: #E2DFD9;
+  --color-stone-300: #CBC7BF;
+  --color-stone-400: #9D988E;
+  --color-stone-500: #706C64;
+  --color-stone-600: #56534D;
+  --color-stone-700: #3E3C39;
+  --color-stone-800: #2B2A2A;
+  --color-stone-900: #1F1F20;
+  --color-stone-950: #141415;
+
+  /* Or de la marque : accent principal (teal, blue, indigo, violet, purple, sky, cyan) */
+  --color-teal-50: #FEF9EA;
+  --color-teal-100: #FBF0CF;
+  --color-teal-200: #F8E3A9;
+  --color-teal-300: #F5D482;
+  --color-teal-400: #E4B964;
+  --color-teal-500: #C58F37;
+  --color-teal-600: #A97324;
+  --color-teal-700: #8F6020;
+  --color-teal-800: #744D1A;
+  --color-teal-900: #5A3B15;
+  --color-teal-950: #33200B;
+  --color-blue-50: #FEF9EA;
+  --color-blue-100: #FBF0CF;
+  --color-blue-200: #F8E3A9;
+  --color-blue-300: #F5D482;
+  --color-blue-400: #E4B964;
+  --color-blue-500: #C58F37;
+  --color-blue-600: #A97324;
+  --color-blue-700: #8F6020;
+  --color-blue-800: #744D1A;
+  --color-blue-900: #5A3B15;
+  --color-blue-950: #33200B;
+  --color-indigo-50: #FEF9EA;
+  --color-indigo-100: #FBF0CF;
+  --color-indigo-200: #F8E3A9;
+  --color-indigo-300: #F5D482;
+  --color-indigo-400: #E4B964;
+  --color-indigo-500: #C58F37;
+  --color-indigo-600: #A97324;
+  --color-indigo-700: #8F6020;
+  --color-indigo-800: #744D1A;
+  --color-indigo-900: #5A3B15;
+  --color-indigo-950: #33200B;
+  --color-violet-50: #FEF9EA;
+  --color-violet-100: #FBF0CF;
+  --color-violet-200: #F8E3A9;
+  --color-violet-300: #F5D482;
+  --color-violet-400: #E4B964;
+  --color-violet-500: #C58F37;
+  --color-violet-600: #A97324;
+  --color-violet-700: #8F6020;
+  --color-violet-800: #744D1A;
+  --color-violet-900: #5A3B15;
+  --color-violet-950: #33200B;
+  --color-purple-50: #FEF9EA;
+  --color-purple-100: #FBF0CF;
+  --color-purple-200: #F8E3A9;
+  --color-purple-300: #F5D482;
+  --color-purple-400: #E4B964;
+  --color-purple-500: #C58F37;
+  --color-purple-600: #A97324;
+  --color-purple-700: #8F6020;
+  --color-purple-800: #744D1A;
+  --color-purple-900: #5A3B15;
+  --color-purple-950: #33200B;
+  --color-sky-50: #FEF9EA;
+  --color-sky-100: #FBF0CF;
+  --color-sky-200: #F8E3A9;
+  --color-sky-300: #F5D482;
+  --color-sky-400: #E4B964;
+  --color-sky-500: #C58F37;
+  --color-sky-600: #A97324;
+  --color-sky-700: #8F6020;
+  --color-sky-800: #744D1A;
+  --color-sky-900: #5A3B15;
+  --color-sky-950: #33200B;
+  --color-cyan-50: #FEF9EA;
+  --color-cyan-100: #FBF0CF;
+  --color-cyan-200: #F8E3A9;
+  --color-cyan-300: #F5D482;
+  --color-cyan-400: #E4B964;
+  --color-cyan-500: #C58F37;
+  --color-cyan-600: #A97324;
+  --color-cyan-700: #8F6020;
+  --color-cyan-800: #744D1A;
+  --color-cyan-900: #5A3B15;
+  --color-cyan-950: #33200B;
+
+  /* Vert vif : succès, présence, validation (emerald, green, lime) */
+  --color-emerald-50: #EFFCEE;
+  --color-emerald-100: #D8F8D5;
+  --color-emerald-200: #B3F0AE;
+  --color-emerald-300: #80E478;
+  --color-emerald-400: #55D74D;
+  --color-emerald-500: #39C832;
+  --color-emerald-600: #2BA526;
+  --color-emerald-700: #238322;
+  --color-emerald-800: #1D681D;
+  --color-emerald-900: #1A531B;
+  --color-emerald-950: #0C300D;
+  --color-green-50: #EFFCEE;
+  --color-green-100: #D8F8D5;
+  --color-green-200: #B3F0AE;
+  --color-green-300: #80E478;
+  --color-green-400: #55D74D;
+  --color-green-500: #39C832;
+  --color-green-600: #2BA526;
+  --color-green-700: #238322;
+  --color-green-800: #1D681D;
+  --color-green-900: #1A531B;
+  --color-green-950: #0C300D;
+  --color-lime-50: #EFFCEE;
+  --color-lime-100: #D8F8D5;
+  --color-lime-200: #B3F0AE;
+  --color-lime-300: #80E478;
+  --color-lime-400: #55D74D;
+  --color-lime-500: #39C832;
+  --color-lime-600: #2BA526;
+  --color-lime-700: #238322;
+  --color-lime-800: #1D681D;
+  --color-lime-900: #1A531B;
+  --color-lime-950: #0C300D;
+
+  /* Jaune : attention, retard (amber, yellow) */
+  --color-amber-50: #FEFBE6;
+  --color-amber-100: #FDF6C0;
+  --color-amber-200: #FBEE8A;
+  --color-amber-300: #F7E250;
+  --color-amber-400: #F2D719;
+  --color-amber-500: #D2B80F;
+  --color-amber-600: #A38C0B;
+  --color-amber-700: #7F6D0B;
+  --color-amber-800: #655709;
+  --color-amber-900: #52470C;
+  --color-amber-950: #2E2705;
+  --color-yellow-50: #FEFBE6;
+  --color-yellow-100: #FDF6C0;
+  --color-yellow-200: #FBEE8A;
+  --color-yellow-300: #F7E250;
+  --color-yellow-400: #F2D719;
+  --color-yellow-500: #D2B80F;
+  --color-yellow-600: #A38C0B;
+  --color-yellow-700: #7F6D0B;
+  --color-yellow-800: #655709;
+  --color-yellow-900: #52470C;
+  --color-yellow-950: #2E2705;
+
+  /* Rouge : erreur, absence, suppression (red, rose) */
+  --color-red-50: #FDF0EF;
+  --color-red-100: #FBDEDD;
+  --color-red-200: #F6BFBE;
+  --color-red-300: #EE9593;
+  --color-red-400: #E15F5C;
+  --color-red-500: #D43E3B;
+  --color-red-600: #C82927;
+  --color-red-700: #A61F1E;
+  --color-red-800: #881D1D;
+  --color-red-900: #721E1D;
+  --color-red-950: #3F0B0B;
+  --color-rose-50: #FDF0EF;
+  --color-rose-100: #FBDEDD;
+  --color-rose-200: #F6BFBE;
+  --color-rose-300: #EE9593;
+  --color-rose-400: #E15F5C;
+  --color-rose-500: #D43E3B;
+  --color-rose-600: #C82927;
+  --color-rose-700: #A61F1E;
+  --color-rose-800: #881D1D;
+  --color-rose-900: #721E1D;
+  --color-rose-950: #3F0B0B;
+
+  /* Or AngloGold : orange, accent chaud */
+  --color-orange-50: #FBF5EE;
+  --color-orange-100: #F5E7D4;
+  --color-orange-200: #EBCDA6;
+  --color-orange-300: #DEAB72;
+  --color-orange-400: #CE8A4B;
+  --color-orange-500: #BC7A3E;
+  --color-orange-600: #A96C32;
+  --color-orange-700: #8A5628;
+  --color-orange-800: #6F4527;
+  --color-orange-900: #5C3A24;
+  --color-orange-950: #331E11;
+
+  /* Brun bordeaux : fuchsia, pink */
+  --color-fuchsia-50: #FAF1F0;
+  --color-fuchsia-100: #F3DEDC;
+  --color-fuchsia-200: #E6BFBB;
+  --color-fuchsia-300: #D3948E;
+  --color-fuchsia-400: #B8605A;
+  --color-fuchsia-500: #8F403B;
+  --color-fuchsia-600: #703431;
+  --color-fuchsia-700: #572A27;
+  --color-fuchsia-800: #472220;
+  --color-fuchsia-900: #3A1D1B;
+  --color-fuchsia-950: #1F0E0D;
+  --color-pink-50: #FAF1F0;
+  --color-pink-100: #F3DEDC;
+  --color-pink-200: #E6BFBB;
+  --color-pink-300: #D3948E;
+  --color-pink-400: #B8605A;
+  --color-pink-500: #8F403B;
+  --color-pink-600: #703431;
+  --color-pink-700: #572A27;
+  --color-pink-800: #472220;
+  --color-pink-900: #3A1D1B;
+  --color-pink-950: #1F0E0D;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: #F8F7F5;
+    color: #2B2A2A;
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  img, svg, video, canvas { max-width: 100%; }
+  ::selection { background: #F5D482; color: #1F1F20; }
+  :focus-visible { outline: 2px solid #A97324; outline-offset: 2px; }
+
+  /* Défilement discret, cohérent avec la charte */
+  * { scrollbar-width: thin; scrollbar-color: #CBC7BF transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb { background: #CBC7BF; border-radius: 9999px; }
+  *::-webkit-scrollbar-thumb:hover { background: #A97324; }
+
+  /* Boîtes de dialogue et tableaux : jamais plus larges que l'écran */
+  [role="dialog"] { max-width: calc(100vw - 1.5rem); }
+  input, select, textarea { max-width: 100%; }
+}
+
+/* Barre latérale sombre : défilement fin et clair */
+.sidebar-scroll { scrollbar-color: #4A4743 transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #4A4743; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #A97324; }
+
+@media print {
+  body { background: #fff !important; }
+}
+
+/*
+ * Fenêtres modales (voir composant/ModalOverlay.jsx)
+ * Échelle d'empilement de l'application :
+ *   30 barre supérieure · 40 barre latérale · 250 panneaux de la barre supérieure · 300 tiroir mobile
+ *   400+ fenêtres (+5 par fenêtre empilée) · 480 listes déroulantes · 500+ confirmations · 600 notifications · 700 progression
+ */
+:root {
+  --z-sticky: 30;
+  --z-sidebar: 40;
+  --z-modal: 400;
+  --z-popover: 480;
+  --z-confirm: 500;
+  --z-toast: 600;
+  --z-progress: 700;
+}
+
+/* Une fenêtre ne dépasse jamais l'écran : elle défile à l'intérieur, jamais en dehors. */
+[data-modal-layer] [role="dialog"]:not([data-modal-fixed]),
+[data-modal-layer] [role="alertdialog"]:not([data-modal-fixed]) {
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-block: auto;
+}
+@media (min-width: 640px) {
+  [data-modal-layer] [role="dialog"]:not([data-modal-fixed]),
+  [data-modal-layer] [role="alertdialog"]:not([data-modal-fixed]) { max-height: calc(100dvh - 3rem); }
+}
+
+/* Pied de formulaire toujours visible, même quand le contenu est long. */
+[data-modal-layer] [data-modal-footer] {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #fff;
+  border-top: 1px solid #efede9;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  box-shadow: 0 0 0 1.5rem #fff;
+}
+
+/* Formulaires : champs et colonnes ne débordent jamais de la fenêtre. */
+[data-modal-layer] form { min-width: 0; }
+[data-modal-layer] input, [data-modal-layer] select, [data-modal-layer] textarea { min-width: 0; max-width: 100%; }
+@media (max-width: 639px) {
+  [data-modal-layer] .grid.sm\:grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Cohérence visuelle des anciennes fenêtres : même arrondi et même ombre que les nouvelles. */
+[data-modal-layer] [role="dialog"]:not([data-modal-fixed]) {
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(31, 31, 32, 0.45);
+}

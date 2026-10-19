@@ -12,19 +12,23 @@ import Calendrier from './Calendrier';
 import NouvelleAffectation from './NouvelleAffectation';
 import Statistiques from './Statistiques';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
+import PrerequisiteBanner from '../../aide/Prerequisites';
+import { usePrerequisites } from '../../aide/usePrerequisites';
 
 const emptyData = {
   annees_scolaires: [], sessions: [], groupes: [], niveaux: [], types_formations: [],
   formateurs: [], salles: [], emplois_du_temps: [], inscriptions: [],
 };
 
-export default function EmploisDuTemps({ onBack, currentUser }) {
+export default function EmploisDuTemps({ onBack, currentUser, initialTab }) {
+  const prerequisites = usePrerequisites('salles/affectations', currentUser);
   const isAdmin = currentUser?.role_code === 'admin' || currentUser?.role === 'admin';
   const isTrainer = (currentUser?.role_code || currentUser?.role) === 'formateur';
   const can = (action) => isAdmin || (currentUser?.permissions?.['emplois-temps'] || []).includes(action);
   const canRead = can('read');
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState('calendrier');
+  const [activeTab, setActiveTab] = useState(initialTab || 'calendrier');
   const [data, setData] = useState(emptyData);
   const [selectedYear, setSelectedYear] = useState('');
   const [editing, setEditing] = useState(null);
@@ -187,7 +191,7 @@ Si des inscriptions ou présences y sont liées, la base refusera la suppression
               {data.annees_scolaires.map((item) => <option key={item.id} value={item.id}>{item.libelle}{Number(item.statut) === 1 ? ' · active' : ''}</option>)}
             </select>
             {can('create') && (
-              <button type="button" onClick={() => { setEditing(null); setActiveTab('affectation'); setError(''); }} className="inline-flex items-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900">
+              <button type="button" onClick={() => { setEditing(null); setActiveTab('affectation'); setError(''); }} disabled={prerequisites.blocked} title={prerequisites.blocked ? 'Complétez d’abord les prérequis indiqués' : undefined} className="inline-flex items-center gap-2 rounded-lg bg-teal-800 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 font-semibold text-white hover:bg-teal-900">
                 <Plus size={16} /> Nouvelle affectation
               </button>
             )}
@@ -198,16 +202,17 @@ Si des inscriptions ou présences y sont liées, la base refusera la suppression
 
       {!canRead && <div role="alert" className="mb-5 border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Votre rôle ne dispose pas de la permission de lecture des emplois du temps.</div>}
       {error && <div role="alert" className="mb-4 flex items-start gap-3 border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><AlertCircle size={18} className="mt-0.5 shrink-0" /><span className="flex-1">{error}</span><button type="button" onClick={() => setError('')} aria-label="Fermer le message"><X size={16} /></button></div>}
+      <div className="mb-4"><PrerequisiteBanner prerequisites={prerequisites} action="de créer une affectation" /></div>
       {notice && <div role="status" className="mb-4 border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
 
-      <nav aria-label="Vues des emplois du temps" className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-2">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" onClick={() => { setActiveTab(id); setEditing(null); }} aria-current={activeTab === id ? 'page' : undefined} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold ${activeTab === id ? 'border-teal-700 text-teal-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-            <Icon size={16} />{label}
-          </button>
-        ))}
-        {activeTab === 'affectation' && <span className="inline-flex shrink-0 items-center gap-2 border-b-2 border-teal-700 px-4 py-3 text-sm font-semibold text-teal-900"><Plus size={16} />{editing ? 'Modifier' : 'Nouvelle affectation'}</span>}
-      </nav>
+      <SubTabNav
+        className="mb-5"
+        label="Vues des emplois du temps"
+        items={tabs}
+        active={activeTab}
+        onChange={(id) => { setActiveTab(id); setEditing(null); }}
+        trailing={activeTab === 'affectation' ? <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-gold px-3.5 py-2 text-sm font-semibold text-white"><Plus size={16} />{editing ? 'Modifier' : 'Nouvelle affectation'}</span> : null}
+      />
 
       {loading ? (
         <div role="status" className="border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">Chargement des données de l’académie…</div>

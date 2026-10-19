@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Download, Eye, Search, SquarePen, Trash2, UserX } from 'lucide-react';
 import { exportTrainerCsv } from './formateursHelpers';
 import { TrainerFilter, TrainerStatus } from './FormateursComponents';
+import { printPage } from '../../utils/print';
 
 export default function ListeFormateurs({
   trainers, workloads, onEdit, onViewSchedule, onToggleStatus, onDelete,
@@ -34,7 +35,7 @@ export default function ListeFormateurs({
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={exportList} disabled={!visible.length} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Download className="h-4 w-4" /> Excel / CSV</button>
-          <button type="button" onClick={() => window.print()} className="border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">PDF / imprimer</button>
+          <button type="button" onClick={() => printPage('Liste des formateurs')} className="border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">PDF / imprimer</button>
         </div>
       </section>
 

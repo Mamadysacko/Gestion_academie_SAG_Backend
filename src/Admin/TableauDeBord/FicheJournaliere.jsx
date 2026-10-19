@@ -8,9 +8,10 @@ import { printElements } from '../../utils/print';
 import { exportWorkbook } from '../../utils/exportExcel';
 import logoSag from '../../assets/logo-sag.png';
 import logoAges from '../../assets/logo-ages.png';
+import { observationText } from '../../utils/leave';
 
 const DAY_CODES = { 1: 'LUN', 2: 'MAR', 3: 'MER', 4: 'JEU', 5: 'VEN' };
-const SPARE_ROWS = 3;
+const SPARE_ROWS = 0;
 
 const todayIso = () => {
   const now = new Date();
@@ -32,7 +33,7 @@ function Fiche({ date, classe, types }) {
       <header className="grid grid-cols-[62mm_1fr_62mm] items-center gap-3 pb-2">
         <img src={logoSag} alt="Société Anglogold Ashanti de Guinée SAG SA" className="h-[20mm] w-auto object-contain object-left" />
         <div className="text-center">
-          <p className="rounded-sm bg-[#f28c1e] px-3 py-1.5 text-[15px] font-extrabold tracking-wide text-white">Siguiri Education Project</p>
+          <p className="rounded-sm bg-[#1F1F20] px-3 py-1.5 text-[15px] font-extrabold tracking-wide text-[#F5D482]">Siguiri Education Project</p>
           <p className="mt-1.5 text-[11px] font-bold">SAG French Numeracy and Literacy – Employees Education Attendance Sheet</p>
           <p className="text-[10px] italic">Feuille de Présence – Formation Numératie et Alphabétisation des Employés</p>
         </div>
@@ -74,7 +75,7 @@ function Fiche({ date, classe, types }) {
               <td className={`${cell} text-center`}>{row?.departement_code}</td>
               <td className={cell}>{row?.departement_libelle}</td>
               <td className={`${cell} text-center`}>{row ? DAY_CODES[row.jour_semaine] : ''}</td>
-              <td className={`${cell} bg-[#d9f2d9] text-center font-bold`}>{row?.salle_code}</td>
+              <td className={`${cell} bg-[#FBF0CF] text-center font-bold`}>{row?.salle_code}</td>
               <td className={`${cell} text-center`}>{row?.auditeur_matricule}</td>
               <td className={cell}>{row?.auditeur_position}</td>
               <td className={`${cell} text-center`}>{row?.auditeur_sexe}</td>
@@ -82,7 +83,7 @@ function Fiche({ date, classe, types }) {
               <td className={`${cell} text-center`}>{row?.auditeur_telephone}</td>
               <td className={`${cell} w-[30mm]`} />
               <td className={`${cell} w-[30mm]`} />
-              <td className={`${cell} w-[28mm]`} />
+              <td className={`${cell} w-[28mm] text-[8px] leading-tight`}>{row ? observationText(row) : ''}</td>
             </tr>
           ))}
         </tbody>
@@ -155,7 +156,7 @@ export default function FicheJournaliere({ sessions = [], selectedSession = '' }
       await exportWorkbook({
         filename: `fiche-presence-${date}`,
         sheets: visible.map((item) => {
-          const lines = [...item.rows.map((row, index) => ({ no: index + 1, dept_code: row.departement_code, dept: row.departement_libelle, jour: DAY_CODES[row.jour_semaine], salle: row.salle_code, matricule: row.auditeur_matricule, poste: row.auditeur_position, sexe: row.auditeur_sexe, nom: `${row.auditeur_nom} ${row.auditeur_prenom}`, tel: row.auditeur_telephone })),
+          const lines = [...item.rows.map((row, index) => ({ no: index + 1, dept_code: row.departement_code, dept: row.departement_libelle, jour: DAY_CODES[row.jour_semaine], salle: row.salle_code, matricule: row.auditeur_matricule, poste: row.auditeur_position, sexe: row.auditeur_sexe, nom: `${row.auditeur_nom} ${row.auditeur_prenom}`, tel: row.auditeur_telephone, obs: observationText(row) })),
             ...Array.from({ length: SPARE_ROWS }, (_, index) => ({ no: item.rows.length + index + 1 }))];
           return {
             name: `${item.info.salle_code} ${item.info.groupe_code}`,
@@ -187,7 +188,7 @@ export default function FicheJournaliere({ sessions = [], selectedSession = '' }
           <div className="flex flex-wrap gap-2 print:hidden">
             <button type="button" onClick={() => load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualiser</button>
             <button type="button" disabled={!visible.length} onClick={exportExcel} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-3.5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"><FileSpreadsheet className="h-4 w-4" />Excel</button>
-            <button type="button" disabled={!visible.length} onClick={() => printElements(visible.map((item) => pages.current[item.key]), `Fiche de présence ${frDate(date)}`, { orientation: 'landscape', margin: '8mm' })} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3.5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"><Printer className="h-4 w-4" />Imprimer / PDF ({visible.length})</button>
+            <button type="button" disabled={!visible.length} onClick={() => printElements(visible.map((item) => pages.current[item.key]), `Fiche de présence ${frDate(date)}`, { orientation: 'landscape', margin: '8mm', branded: false })} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3.5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"><Printer className="h-4 w-4" />Imprimer / PDF ({visible.length})</button>
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

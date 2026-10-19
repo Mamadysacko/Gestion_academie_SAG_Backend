@@ -1,5 +1,6 @@
 import { Building2, Search } from 'lucide-react';
-import { formatRate, buildRoomRoster, buildRoomDailySheets } from './presenceHelpers';
+import { buildRoomRoster, buildRoomDailySheets } from './presenceHelpers';
+import { DAYS_OF_WEEK } from './presenceHelpers';
 import { PeriodFilters, PresenceFilter, PresenceMetric, PresenceTable } from './PresenceComponents';
 
 export default function ParSalle({
@@ -32,12 +33,28 @@ export default function ParSalle({
     ? buildRoomDailySheets(data, selectedRoom, selectedDate, search)
     : [];
 
-  const dailyRows = dailySheets.flatMap((sheet) => sheet.rows);
-
   // Synthèse auditeurs de la salle sur la période
   const roster = selectedRoom
     ? buildRoomRoster(data, selectedRoom, salleRows, search)
     : [];
+
+  // Formateur correspondant à la salle : affectations (créneaux) actives de la salle pour le jour choisi.
+  const weekday = selectedDate ? new Date(`${selectedDate}T12:00:00`).getDay() : null;
+  const roomSchedules = selectedRoom
+    ? data.emplois_du_temps.filter((emploi) => String(emploi.id_salle) === selectedRoom && Number(emploi.statut) === 1)
+    : [];
+  const daySchedules = weekday ? roomSchedules.filter((emploi) => Number(emploi.jour_semaine) === weekday) : [];
+  const describeSchedule = (emploi) => {
+    const trainer = data.formateurs.find((item) => Number(item.id) === Number(emploi.id_formateur));
+    const group = data.groupes.find((item) => Number(item.id) === Number(emploi.id_groupe));
+    return {
+      id: emploi.id,
+      trainer: trainer ? `${trainer.prenom} ${trainer.nom}` : 'Formateur inconnu',
+      group: group ? `${group.code} · ${group.libelle}` : 'Groupe inconnu',
+      day: DAYS_OF_WEEK[emploi.jour_semaine] || '',
+      hours: group ? `${String(group.heure_debut || '').slice(0, 5)}–${String(group.heure_fin || '').slice(0, 5)}` : '',
+    };
+  };
 
   const present = salleRows.filter((row) => row.statut === 'present').length;
   const absent = salleRows.filter((row) => row.statut === 'absent').length;
@@ -85,6 +102,28 @@ export default function ParSalle({
             <p className="text-xs font-bold uppercase text-teal-800">Salle sélectionnée</p>
             <h2 className="mt-1 text-xl font-bold text-slate-900">{salle.code} · {salle.libelle}</h2>
             <p className="mt-1 text-sm text-slate-500">Capacité : {salle.capacite ?? '—'} places · Statut : {salle.statut ?? '—'}</p>
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3" aria-live="polite">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Formateur du créneau{selectedDate ? ` · ${DAYS_OF_WEEK[weekday] || 'week-end'} ${selectedDate.split('-').reverse().join('/')}` : ''}</p>
+              {daySchedules.length > 0 && (
+                <ul className="mt-2 space-y-1.5">
+                  {daySchedules.map(describeSchedule).map((item) => (
+                    <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span className="font-bold text-slate-900">{item.trainer}</span>
+                      <span className="text-slate-600">{item.group}</span>
+                      {item.hours && <span className="rounded bg-white px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{item.hours}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {daySchedules.length === 0 && roomSchedules.length > 0 && (
+                <p className="mt-2 text-sm text-amber-900">
+                  Aucune affectation pour cette salle le {DAYS_OF_WEEK[weekday]?.toLowerCase() || 'week-end'}. Elle est affectée : {roomSchedules.map(describeSchedule).map((item) => `${item.day} (${item.trainer})`).join(', ')}.
+                </p>
+              )}
+              {roomSchedules.length === 0 && (
+                <p className="mt-2 text-sm text-red-800">Aucune affectation active pour cette salle : aucun formateur n’est rattaché à un créneau. Affectez d’abord un groupe à cette salle (Salles › Affectations groupe-salle).</p>
+              )}
+            </div>
           </section>
 
           {/* Métriques globales sur la période */}

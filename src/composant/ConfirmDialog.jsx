@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, PencilLine, TriangleAlert } from 'lucide-react';
 import { ConfirmContext } from './confirmContext';
+import ModalOverlay from './ModalOverlay';
 
 const TONES = {
   danger: { icon: TriangleAlert, badge: 'bg-rose-100 text-rose-700', button: 'bg-rose-700 hover:bg-rose-800', label: 'Supprimer' },
@@ -36,10 +37,7 @@ export function ConfirmProvider({ children }) {
   useEffect(() => {
     if (!request) return undefined;
     confirmButton.current?.focus();
-    const onKey = (event) => { if (event.key === 'Escape') close(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [close, request]);
+  }, [request]);
 
   const tone = TONES[request?.tone] || TONES.primary;
   const Icon = tone.icon;
@@ -49,21 +47,13 @@ export function ConfirmProvider({ children }) {
       {children}
       <AnimatePresence>
         {request && (
-          <motion.div
-            key="confirm-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]"
-            onMouseDown={(event) => { if (event.target === event.currentTarget) close(false); }}
-          >
+          <ModalOverlay key="confirm-overlay" layer="confirm" onClose={() => close(false)}>
             <motion.section
               initial={{ opacity: 0, y: 24, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"
+              role="alertdialog" aria-modal="true" data-modal-fixed aria-labelledby="confirm-title" aria-describedby="confirm-message"
               className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
             >
               <div className="flex items-start gap-4">
@@ -78,7 +68,7 @@ export function ConfirmProvider({ children }) {
                 <motion.button whileTap={{ scale: 0.96 }} ref={confirmButton} type="button" onClick={() => close(true)} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition ${tone.button}`}>{request.confirmLabel || tone.label}</motion.button>
               </div>
             </motion.section>
-          </motion.div>
+          </ModalOverlay>
         )}
       </AnimatePresence>
     </ConfirmContext.Provider>

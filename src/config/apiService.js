@@ -15,27 +15,48 @@
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost/Backend_AGES/Route';
 
+// ── Suivi d'activité (indicateur de chargement global) ────────────────────────
+export const API_ACTIVITY_EVENT = 'ages:api-activity';
+const activity = { reads: 0, writes: 0 };
+function trackActivity(kind, delta) {
+  activity[kind] += delta;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(API_ACTIVITY_EVENT, { detail: { ...activity } }));
+  }
+}
+
+// ── Cache des lectures ────────────────────────────────────────────────────────
+// Les écrans rechargent souvent les mêmes listes (après chaque enregistrement, au retour sur
+// l'onglet, à chaque minuteur) : on mémorise brièvement les réponses GET et on fusionne les
+// requêtes identiques simultanées. Toute écriture réussie invalide ce qu'elle peut avoir modifié.
+// Le texte JSON est conservé (et non l'objet) : chaque appelant reçoit sa propre copie.
+const CACHE_TTL_MS = 10_000;
+const NEVER_CACHED = /^(auth|journal)(\/|\?|$)/;
+const readCache = new Map(); // endpoint -> { at, text }
+const inflight = new Map(); // endpoint -> Promise<{ text, status }>
+let writeEpoch = 0; // incrémenté à chaque écriture : une lecture commencée avant n'est pas mémorisée
+
+// Un pointage ne modifie que les présences et les indicateurs qui en dépendent :
+// les autres listes (salles, groupes, inscriptions…) restent valables.
+const DERIVED_FROM_PRESENCES = ['presences', 'tableau-de-bord', 'rappels', 'rapports', 'resultats'];
+const resourceOf = (endpoint) => endpoint.split(/[/?]/)[0];
+
+function invalidateCache(endpoint) {
+  const resource = resourceOf(endpoint);
+  if (resource === 'presences') {
+    [...readCache.keys()].forEach((key) => {
+      if (DERIVED_FROM_PRESENCES.includes(resourceOf(key))) readCache.delete(key);
+    });
+  } else {
+    readCache.clear();
+  }
+}
+
 // ── Utilitaire fetch ──────────────────────────────────────────────────────────
-async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}/${endpoint}`;
-
-  const defaultOptions = {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-  };
-
-  const mergedOptions = {
-    ...defaultOptions,
-    ...options,
-    headers: { ...defaultOptions.headers, ...(options.headers || {}) },
-  };
-
+async function send(endpoint, mergedOptions) {
   let response;
   try {
-    response = await fetch(url, mergedOptions);
+    response = await fetch(`${API_BASE_URL}/${endpoint}`, mergedOptions);
   } catch {
     throw new ApiError(
       `La requête vers l'API (${API_BASE_URL}) a échoué depuis le navigateur. Vérifiez l'URL, la connexion et la configuration CORS du backend.`,
@@ -43,36 +64,89 @@ async function request(endpoint, options = {}) {
       null
     );
   }
+  return { text: await response.text(), status: response.status, ok: response.ok, contentType: response.headers.get('content-type') || '' };
+}
 
-  const contentType = response.headers.get('content-type') || '';
-  const text = await response.text();
+function parseBody({ text, status, ok, contentType }) {
   let body;
   if (contentType.includes('application/json')) {
     try {
       body = text ? JSON.parse(text) : {};
     } catch {
       throw new ApiError(
-        `Réponse JSON invalide de l'API (HTTP ${response.status}) : ${text.slice(0, 200)}`,
-        response.status,
+        `Réponse JSON invalide de l'API (HTTP ${status}) : ${text.slice(0, 200)}`,
+        status,
         null
       );
     }
   } else {
-    body = { success: false, error: text || `Erreur HTTP ${response.status}` };
+    body = { success: false, error: text || `Erreur HTTP ${status}` };
+  }
+  if (!ok) {
+    throw new ApiError(body.error || `Erreur HTTP ${status}`, status, body);
+  }
+  return body;
+}
+
+async function request(endpoint, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const hasBody = options.body !== undefined && options.body !== null;
+
+  // Pas d'en-tête « Content-Type » sur les lectures : le navigateur n'envoie alors plus de
+  // pré-requête CORS (OPTIONS) avant chaque GET, soit deux fois moins de requêtes.
+  const mergedOptions = {
+    credentials: 'include',
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  };
+
+  if (method === 'GET') {
+    const useCache = !NEVER_CACHED.test(endpoint);
+    if (useCache) {
+      const hit = readCache.get(endpoint);
+      if (hit && Date.now() - hit.at < CACHE_TTL_MS) return parseBody(hit.raw);
+      if (inflight.has(endpoint)) return parseBody(await inflight.get(endpoint));
+    }
+    const epoch = writeEpoch;
+    trackActivity('reads', 1);
+    const pending = send(endpoint, mergedOptions).finally(() => {
+      trackActivity('reads', -1);
+      inflight.delete(endpoint);
+    });
+    if (useCache) inflight.set(endpoint, pending);
+    const raw = await pending;
+    if (useCache && raw.ok && epoch === writeEpoch) readCache.set(endpoint, { at: Date.now(), raw });
+    return parseBody(raw);
   }
 
-  if (!response.ok) {
-    throw new ApiError(body.error || `Erreur HTTP ${response.status}`, response.status, body);
+  writeEpoch += 1;
+  trackActivity('writes', 1);
+  let body;
+  try {
+    body = parseBody(await send(endpoint, mergedOptions));
+  } finally {
+    trackActivity('writes', -1);
+    writeEpoch += 1;
+    invalidateCache(endpoint); // même en cas d'échec : le serveur a pu appliquer une partie du travail
   }
 
-  // Toute écriture réussie prévient les écrans ouverts : ils se réactualisent en silence.
-  const method = (mergedOptions.method || 'GET').toUpperCase();
-  if (method !== 'GET' && !endpoint.startsWith('auth/login') && !endpoint.startsWith('auth/logout')) {
+  // Toute écriture réussie invalide les lectures mémorisées concernées, puis prévient les
+  // écrans ouverts : ils se réactualisent en silence.
+  if (!endpoint.startsWith('auth/login') && !endpoint.startsWith('auth/logout')) {
     notifyDataChanged(endpoint);
+  } else {
+    readCache.clear();
   }
 
   return body;
 }
+
+/** Requête générique (utilisée par les ressources de paramétrage) : même cache et mêmes signaux. */
+export const apiRequest = request;
 
 // ── Signal « données modifiées » ──────────────────────────────────────────────
 export const DATA_CHANGED_EVENT = 'ages:data-changed';

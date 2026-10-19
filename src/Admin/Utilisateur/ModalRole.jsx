@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Shield, Check } from 'lucide-react';
 import { MODULES_PERMISSIONS, ACTIONS_PERMISSIONS } from './utilisateursData';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
   const [formData, setFormData] = useState(() => {
@@ -66,7 +67,7 @@ export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 animate-in fade-in">
+    <ModalOverlay onClose={() => onClose} closeOnBackdrop={false}>
       <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
@@ -210,6 +211,6 @@ export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

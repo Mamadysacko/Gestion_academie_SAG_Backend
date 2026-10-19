@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { CalendarDays, Download, Search, MapPin, UserRound, Users } from 'lucide-react';
 import { JOURS, jourLabel } from './emploisHelpers';
 import ScheduleActions from './ScheduleActions';
+import { exportTable } from '../../utils/exportExcel';
 
 export default function PlanningGeneral({
   data, year, canUpdate, canDelete, onEdit, onToggleStatus, onDelete,
@@ -36,14 +37,13 @@ export default function PlanningGeneral({
       item.inscrits_actifs ?? 0,
       Number(item.statut) === 1 ? 'Actif' : 'Inactif',
     ]);
-    const csv = [headers, ...lines]
-      .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';'))
-      .join('\r\n');
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    link.download = `emplois-du-temps-${year?.libelle || 'academie'}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    exportTable({
+      filename: `emplois-du-temps-${year?.libelle || 'academie'}`,
+      title: 'Emplois du temps hebdomadaires',
+      subtitle: year?.libelle ? `Année scolaire ${year.libelle}` : undefined,
+      headings: headers,
+      rows: lines,
+    });
   };
 
   return (

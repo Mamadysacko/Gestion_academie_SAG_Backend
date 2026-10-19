@@ -1,3 +1,5 @@
+import { exportTable } from '../../utils/exportExcel';
+import { observationText } from '../../utils/leave';
 export const STATUS_OPTIONS = [
   { value: 'present', label: 'Présent' },
   { value: 'absent', label: 'Absent' },
@@ -215,15 +217,9 @@ export function exportPresenceCsv(rows, filename) {
     row.salle?.code || row.salle?.libelle,
     row.formateur ? `${row.formateur.prenom} ${row.formateur.nom}` : '',
     STATUS_LABELS[row.statut] || 'À pointer',
-    row.observation,
+    observationText(row),
   ]);
-  const csv = [headings, ...values].map((line) => line.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  exportTable({ filename, title: 'Registre des présences', headings, rows: values });
 }
 
 export function buildRoomRoster(data, roomId, roomRows = [], search = '') {

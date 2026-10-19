@@ -1,4 +1,5 @@
 import { WEEKDAYS } from '../Salles/sallesHelpers';
+import { exportTable } from '../../utils/exportExcel';
 
 export function getScheduleDetails(data, schedule) {
   const group = data.groupes.find((item) => item.id === schedule.id_groupe);
@@ -48,11 +49,5 @@ export function exportTrainerCsv(rows, filename = 'formateurs') {
   if (!rows.length) return;
   const headings = ['Matricule', 'Nom', 'Prénom', 'Salle', 'Téléphone', 'E-mail', 'Statut', 'Créneaux hebdomadaires', 'Groupes'];
   const values = rows.map((row) => [row.trainer.matricule, row.trainer.nom, row.trainer.prenom, row.trainer.salle_code ? `${row.trainer.salle_code} ${row.trainer.salle_libelle || ''}`.trim() : '', row.trainer.telephone, row.trainer.email, Number(row.trainer.actif) === 1 ? 'Actif' : 'Inactif', row.schedules ?? '', row.groups ?? '']);
-  const csv = [headings, ...values].map((line) => line.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${filename}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  exportTable({ filename, title: 'Liste des formateurs', headings, rows: values });
 }

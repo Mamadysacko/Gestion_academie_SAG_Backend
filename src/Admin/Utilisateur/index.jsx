@@ -11,6 +11,7 @@ import ModalUtilisateur from './ModalUtilisateur';
 import ModalRole from './ModalRole';
 import { rolesApi, usersApi } from '../../config/apiService';
 import { useConfirm } from '../../composant/confirmContext';
+import SubTabNav from '../../composant/SubTabNav';
 
 const roleColors = [
   'bg-indigo-100 text-indigo-700 border-indigo-200',
@@ -36,9 +37,9 @@ const normalizeUser = (user) => ({
   avatar: `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}`.toUpperCase(),
 });
 
-export default function UtilisateurModule({ onBack, currentUser, openCreateUser = false, onCreateUserHandled }) {
+export default function UtilisateurModule({ onBack, currentUser, openCreateUser = false, onCreateUserHandled, initialTab }) {
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(initialTab || 'dashboard');
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -231,7 +232,7 @@ export default function UtilisateurModule({ onBack, currentUser, openCreateUser 
     <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen space-y-6 font-sans">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl border border-slate-700 animate-in slide-in-from-top-4">
+        <div className="fixed top-5 right-5 z-[600] flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl border border-slate-700 animate-in slide-in-from-top-4">
           <Check className={`w-4 h-4 ${toast.type === 'error' ? 'text-rose-400' : 'text-emerald-400'}`} />
           <span>{toast.message}</span>
         </div>
@@ -277,37 +278,7 @@ export default function UtilisateurModule({ onBack, currentUser, openCreateUser 
       </div>
 
       {/* Sub-tabs Navigation Bar */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="flex overflow-x-auto border-b border-slate-100 p-1 gap-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Icon size={16} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
-                <span>{tab.label}</span>
-                {tab.badge != null && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
-                      isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <SubTabNav label="Sections des utilisateurs et rôles" items={tabs} active={activeTab} onChange={setActiveTab} />
 
       {/* Sub-tab Content Area */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm min-h-[500px]">

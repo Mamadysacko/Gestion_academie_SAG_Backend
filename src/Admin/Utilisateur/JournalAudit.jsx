@@ -4,6 +4,9 @@ import { Activity, CheckCircle2, Download, RefreshCw, Search, XCircle } from 'lu
 import { journalApi } from '../../config/apiService';
 import TagSelect from '../../composant/TagSelect';
 import { useLiveRefresh } from '../../composant/useLiveRefresh';
+import { exportTable } from '../../utils/exportExcel';
+import Pagination from '../../composant/Pagination';
+import { usePagination } from '../../composant/usePagination';
 
 const ACTIONS = [
   { value: 'creation', label: 'Création' }, { value: 'modification', label: 'Modification' },
@@ -18,6 +21,7 @@ const ACTION_TONES = {
 /** Journal réel des opérations : qui a créé, modifié, supprimé ou validé quoi, et avec quel résultat. */
 export default function JournalAudit() {
   const [rows, setRows] = useState([]);
+  const { pageRows, pagerProps } = usePagination(rows, 25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ q: '', action: '', succes: '', debut: '', fin: '' });
@@ -43,13 +47,12 @@ export default function JournalAudit() {
   const exportCsv = () => {
     const head = ['Date', 'Utilisateur', 'Rôle', 'Action', 'Ressource', 'Chemin', 'Code', 'Résultat', 'Message', 'IP'];
     const lines = rows.map((r) => [r.created_at, r.utilisateur, r.role_code, r.action, r.ressource, r.chemin, r.code_http, r.succes === '1' || r.succes === 1 ? 'Succès' : 'Échec', r.message, r.adresse_ip]);
-    const csv = String.fromCharCode(0xfeff) + [head, ...lines].map((line) => line.map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(';')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `journal-operations-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportTable({
+      filename: `journal-operations-${new Date().toISOString().slice(0, 10)}`,
+      title: 'Journal des opérations',
+      headings: head,
+      rows: lines,
+    });
   };
 
   return (
@@ -78,7 +81,7 @@ export default function JournalAudit() {
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead className="bg-slate-50 text-[11px] uppercase text-slate-500"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Utilisateur</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Ressource</th><th className="px-4 py-3">Résultat</th><th className="px-4 py-3">Détail</th></tr></thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((row, index) => {
+            {pageRows.map((row, index) => {
               const ok = Number(row.succes) === 1;
               return (
                 <motion.tr key={row.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(index, 12) * 0.015 }}>
@@ -93,6 +96,7 @@ export default function JournalAudit() {
             })}
           </tbody>
         </table>
+        <Pagination {...pagerProps} />
         {!rows.length && !loading && <p className="px-4 py-12 text-center text-sm text-slate-500">Aucune opération enregistrée pour ces filtres.</p>}
       </div>
     </div>

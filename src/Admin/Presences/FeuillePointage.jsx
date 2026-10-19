@@ -6,6 +6,10 @@ import { useConfirm } from '../../composant/confirmContext';
 import { dateToInput, formatDate, STATUS_LABELS, STATUS_OPTIONS } from './presenceHelpers';
 import { PresenceFilter, PresenceMetric } from './PresenceComponents';
 import { useToastNotice } from '../../composant/toastContext';
+import { exportTable } from '../../utils/exportExcel';
+import ModalOverlay from '../../composant/ModalOverlay';
+import LeaveDialog from './LeaveDialog';
+import { PERIOD_STATUSES, leavePeriodLabel, observationText } from '../../utils/leave';
 
 const shortTime = (value) => String(value || '').slice(0, 5);
 
@@ -82,8 +86,9 @@ export default function FeuillePointage({ data, canEdit, onOpenProfile }) {
 
   const mark = async (row, statut, extra = {}) => {
     if (!canEdit) return;
-    if (statut === 'conge' && !extra.conge_date_debut) {
-      setLeave({ row, debut: date, fin: date });
+    // Congé et permission demandent leur période : même fenêtre pour les deux statuts.
+    if (PERIOD_STATUSES.includes(statut) && !extra.conge_date_debut) {
+      setLeave({ row, kind: statut });
       return;
     }
     if (row.statut && row.statut !== statut && !(await confirm({
@@ -105,7 +110,9 @@ export default function FeuillePointage({ data, canEdit, onOpenProfile }) {
       });
       setSheet((current) => ({
         ...current,
-        auditeurs: current.auditeurs.map((item) => item.id_inscription === row.id_inscription ? { ...item, statut } : item),
+        auditeurs: current.auditeurs.map((item) => (item.id_inscription === row.id_inscription
+          ? { ...item, statut, conge_date_debut: extra.conge_date_debut || null, conge_date_fin: extra.conge_date_fin || null }
+          : item)),
       }));
     } catch (saveError) {
       setError(saveError.message || 'Impossible d’enregistrer ce pointage.');
@@ -139,15 +146,15 @@ export default function FeuillePointage({ data, canEdit, onOpenProfile }) {
   };
 
   const exportCsv = () => {
-    const headings = ['Date', 'Session', 'Groupe', 'Salle', 'Formateur', 'Matricule', 'Auditeur', 'Statut'];
-    const lines = rows.map((row) => [date, row.session_code, row.groupe_code, row.salle_code, `${row.formateur_prenom} ${row.formateur_nom}`, row.auditeur_matricule, `${row.auditeur_prenom} ${row.auditeur_nom}`, row.statut ? STATUS_LABELS[row.statut] : 'Non pointé']);
-    const csv = [headings, ...lines].map((line) => line.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `feuille-presence-${date}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const headings = ['Date', 'Session', 'Groupe', 'Salle', 'Formateur', 'Matricule', 'Auditeur', 'Statut', 'Observation'];
+    const lines = rows.map((row) => [date, row.session_code, row.groupe_code, row.salle_code, `${row.formateur_prenom} ${row.formateur_nom}`, row.auditeur_matricule, `${row.auditeur_prenom} ${row.auditeur_nom}`, row.statut ? STATUS_LABELS[row.statut] : 'Non pointé', observationText(row)]);
+    exportTable({
+      filename: `feuille-presence-${date}`,
+      title: 'Feuille de présence',
+      subtitle: `Date : ${date}`,
+      headings,
+      rows: lines,
+    });
   };
 
   return (
@@ -185,7 +192,11 @@ export default function FeuillePointage({ data, canEdit, onOpenProfile }) {
 
       {loading && !sheet ? <p role="status" className="border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Calcul de la feuille du jour…</p>
         : sheet && !sheet.jour_de_cours ? <EmptyState title="Pas de cours ce jour" text="Les cours ont lieu du lundi au vendredi." />
-          : !classes.length ? <EmptyState title="Aucun auditeur attendu" text="Aucun groupe n’a cours à cette date avec ces filtres (jour du groupe, période de la session et de l’année)." />
+          : !classes.length ? <EmptyState title={filters.id_salle ? 'Aucune affectation pour cette salle à cette date' : 'Aucun auditeur attendu'} text={filters.id_salle
+              ? (data.emplois_du_temps.some((emploi) => String(emploi.id_salle) === filters.id_salle && Number(emploi.statut) === 1)
+                ? 'Cette salle est bien affectée, mais pas le jour choisi (ou aucun auditeur n’y est inscrit). Changez de date ou de salle.'
+                : 'Aucun groupe n’est affecté à cette salle, donc aucun formateur n’y est rattaché : créez d’abord l’affectation (Salles › Affectations groupe-salle).')
+              : 'Aucun groupe n’a cours à cette date avec ces filtres (jour du groupe, période de la session et de l’année).'} />
             : classes.map((item) => (
               <section key={item.key} className="border border-slate-200 bg-white">
                 <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -204,7 +215,7 @@ export default function FeuillePointage({ data, canEdit, onOpenProfile }) {
                       <div className="min-w-0">
                         <button type="button" onClick={() => onOpenProfile?.(row.id_auditeur)} className="text-left text-sm font-semibold text-slate-800 hover:text-teal-800">{row.auditeur_nom} {row.auditeur_prenom}</button>
                         <span className="ml-2 font-mono text-xs text-slate-500">{row.auditeur_matricule}</span>
-                        {row.conge_en_cours && <span className="ml-2 border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">Congé du {formatDate(row.conge_en_cours.debut)} au {formatDate(row.conge_en_cours.fin)}</span>}
+                        {row.conge_en_cours && <span className="ml-2 border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">{leavePeriodLabel(row)}</span>}
                       </div>
                       <div className="flex flex-wrap gap-1" role="group" aria-label={`Statut de ${row.auditeur_prenom} ${row.auditeur_nom}`}>
                         {STATUS_OPTIONS.map((status) => {
@@ -220,16 +231,13 @@ export default function FeuillePointage({ data, canEdit, onOpenProfile }) {
             ))}
 
       {leave && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setLeave(null); }}>
-          <form onSubmit={(event) => { event.preventDefault(); const { row, debut, fin } = leave; setLeave(null); mark(row, 'conge', { conge_date_debut: debut, conge_date_fin: fin }); }} className="w-full max-w-sm space-y-4 border border-slate-200 bg-white p-5 shadow-2xl">
-            <div className="flex items-start justify-between"><div><h2 className="text-base font-bold text-slate-900">Période de congé</h2><p className="mt-1 text-xs text-slate-500">{leave.row.auditeur_prenom} {leave.row.auditeur_nom} — les jours de cours compris dans cette période seront pointés « Congé » automatiquement.</p></div><button type="button" onClick={() => setLeave(null)} aria-label="Fermer" className="p-1 text-slate-500"><X className="h-4 w-4" /></button></div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-xs font-semibold text-slate-700">Du<input required type="date" value={leave.debut} max={date} onChange={(event) => setLeave((current) => ({ ...current, debut: event.target.value }))} className="mt-1 w-full border border-slate-300 px-2 py-2 text-sm" /></label>
-              <label className="text-xs font-semibold text-slate-700">Au<input required type="date" value={leave.fin} min={date} onChange={(event) => setLeave((current) => ({ ...current, fin: event.target.value }))} className="mt-1 w-full border border-slate-300 px-2 py-2 text-sm" /></label>
-            </div>
-            <div className="flex justify-end gap-2"><button type="button" onClick={() => setLeave(null)} className="border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Annuler</button><button type="submit" className="bg-teal-800 px-3 py-2 text-xs font-semibold text-white">Enregistrer le congé</button></div>
-          </form>
-        </div>
+        <LeaveDialog
+          kind={leave.kind}
+          person={`${leave.row.auditeur_prenom} ${leave.row.auditeur_nom}`}
+          date={date}
+          onClose={() => setLeave(null)}
+          onConfirm={({ debut, fin }) => { const { row, kind } = leave; setLeave(null); mark(row, kind, { conge_date_debut: debut, conge_date_fin: fin }); }}
+        />
       )}
     </div>
   );

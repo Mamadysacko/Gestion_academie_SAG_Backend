@@ -131,7 +131,7 @@ export default function RapportsHub({ annees = [], sessions = [], selectedAnnee 
 
   const exportPdf = () => {
     if (!report) return;
-    printElements(doc.current, report.titre, { orientation: 'landscape', margin: '8mm' });
+    printElements(doc.current, report.titre, { orientation: 'landscape', margin: '8mm', branded: false });
   };
 
   const exportExcel = async () => {

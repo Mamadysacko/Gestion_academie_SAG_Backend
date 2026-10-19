@@ -12,10 +12,13 @@ import { useConfirm } from '../../composant/confirmContext';
 import { loadPlanningData } from '../planningData';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
+import PrerequisiteBanner from '../../aide/Prerequisites';
+import { usePrerequisites } from '../../aide/usePrerequisites';
 
 const tabs = [
   { id: 'salles', label: 'Salles', icon: Building2 },
-  { id: 'affectations', label: 'Affectations classe–salle', icon: CalendarDays },
+  { id: 'affectations', label: 'Affectations groupe-salle', icon: CalendarDays },
   { id: 'disponibilite', label: 'Disponibilité', icon: MapPinned },
   { id: 'statistiques', label: 'Statistiques', icon: ChartNoAxesCombined },
 ];
@@ -25,11 +28,11 @@ const emptyData = {
   formateurs: [], salles: [], emplois_du_temps: [], inscriptions: [], inscriptionsAccessibles: false, presences: [],
 };
 
-export default function SallesModule({ onBack, currentUser }) {
+export default function SallesModule({ onBack, currentUser, initialTab }) {
   const confirm = useConfirm();
   const [data, setData] = useState(emptyData);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('salles');
+  const [activeTab, setActiveTab] = useState(initialTab || 'salles');
   const [roomDialog, setRoomDialog] = useState(null);
   const [assignmentDialog, setAssignmentDialog] = useState(null);
   const [error, setError] = useState('');
@@ -61,6 +64,8 @@ export default function SallesModule({ onBack, currentUser }) {
     || currentUser?.role === 'admin'
     || (currentUser?.permissions?.[module] || []).includes(action);
 
+  const prerequisites = usePrerequisites('salles/affectations', currentUser);
+  const roomPrerequisites = usePrerequisites('salles/salles', currentUser);
   const activeYear = getCurrentSchoolYear(data.annees_scolaires);
   const canReadPlanning = ['emplois-temps', 'organisation-pedagogique', 'salles', 'formateurs']
     .every((module) => hasAccess(module, 'read'));
@@ -99,13 +104,18 @@ export default function SallesModule({ onBack, currentUser }) {
     unavailable: rooms.filter((room) => room.displayStatus === 'indisponible').length,
   };
 
-  const saveRoomRecord = async (record) => {
+  /**
+   * Enregistre une salle. mode : 'close' (liste), 'continue' (nouvelle salle), 'affect' (ouvre l'affectation),
+   * 'inline' (création depuis le formulaire d'affectation). Renvoie l'identifiant de la salle, ou null en cas d'échec :
+   * le formulaire reste alors ouvert avec toutes les données saisies.
+   */
+  const saveRoomRecord = async (record, mode = 'close') => {
     const code = record.code.trim().toLocaleUpperCase('fr');
     const newTrainer = data.formateurs.find((item) => String(item.id) === String(record.id_formateur));
-    if (!(await confirm(record.id
+    if ((record.id || mode === 'close') && !(await confirm(record.id
       ? { title: 'Enregistrer les modifications ?', message: `La salle ${code} sera mise à jour${newTrainer ? `\nFormateur attitré : ${newTrainer.prenom} ${newTrainer.nom}` : ''}.`, tone: 'warning' }
       : { title: 'Créer cette salle ?', message: `La salle ${code} · ${record.libelle.trim()} sera ajoutée${newTrainer ? ` et affectée à ${newTrainer.prenom} ${newTrainer.nom}` : ''}.`, tone: 'primary' }))) {
-      return;
+      return null;
     }
     try {
       const payload = {
@@ -124,13 +134,25 @@ export default function SallesModule({ onBack, currentUser }) {
         if (previousTrainer) await formateursApi.update(previousTrainer.id, { id_salle: null });
         if (newTrainer) await formateursApi.update(newTrainer.id, { id_salle: roomId });
       }
-      await reloadData();
-      setRoomDialog(null);
       setError('');
-      setNotice(`Salle ${record.id ? 'modifiée' : 'créée'} dans la base de données.`);
+      setNotice(`Salle ${record.code ? code : ''} ${record.id ? 'modifiée' : 'créée'}.`.replace('  ', ' '));
+      if (mode === 'affect') {
+        // L'affectation a besoin de la salle et de son formateur à jour : on attend le rechargement.
+        await reloadData();
+        setRoomDialog(null);
+        setActiveTab('affectations');
+        setAssignmentDialog({ assignment: null, preset: { id_salle: Number(roomId) }, key: Date.now() });
+      } else if (mode === 'inline') {
+        await reloadData();
+      } else {
+        reloadData().catch(() => {});
+        setRoomDialog(mode === 'continue' ? { room: null, key: Date.now() } : null);
+      }
+      return roomId;
     } catch (saveError) {
-      await reloadData().catch(() => {});
+      reloadData().catch(() => {});
       setError(saveError.message || 'La salle n’a pas pu être enregistrée.');
+      return null;
     }
   };
 
@@ -166,12 +188,12 @@ export default function SallesModule({ onBack, currentUser }) {
     }
   };
 
-  const saveAssignment = async (record) => {
+  const saveAssignment = async (record, mode = 'close') => {
     const group = data.groupes.find((item) => item.id === Number(record.id_groupe));
     const room = data.salles.find((item) => item.id === Number(record.id_salle));
     const trainer = data.formateurs.find((item) => item.id === Number(record.id_formateur));
     const day = WEEKDAYS.find((item) => item.value === Number(record.jour_semaine))?.label || '';
-    if (!(await confirm({
+    if (mode !== 'continue' && !(await confirm({
       title: record.id ? 'Modifier cette affectation ?' : 'Affecter ce groupe à la salle ?',
       message: `Groupe ${group?.code || ''} · ${group?.libelle || ''}\nSalle ${room?.code || ''} · formateur ${trainer?.prenom || ''} ${trainer?.nom || ''}\nChaque ${day.toLocaleLowerCase('fr')}`,
       tone: record.id ? 'warning' : 'primary',
@@ -187,10 +209,13 @@ export default function SallesModule({ onBack, currentUser }) {
       };
       if (record.id) await emploisApi.update(record.id, payload);
       else await emploisApi.create(payload);
-      await reloadData();
-      setAssignmentDialog(null);
+      // La fenêtre se ferme dès que l'enregistrement est confirmé ; la liste se met à jour juste après.
       setError('');
       setNotice(`Affectation ${record.id ? 'modifiée' : 'créée'} dans l’emploi du temps partagé.`);
+      reloadData().catch(() => {});
+      setAssignmentDialog(mode === 'continue' && !record.id
+        ? { assignment: null, key: Date.now(), preset: { id_annee: Number(record.id_annee), id_session: record.id_session || '', id_salle: Number(record.id_salle) } }
+        : null);
     } catch (saveError) {
       setError(saveError.message || 'L’affectation n’a pas pu être enregistrée.');
     }
@@ -215,25 +240,27 @@ export default function SallesModule({ onBack, currentUser }) {
   };
 
   return <div className="space-y-6 pb-10">
-    <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><button type="button" onClick={onBack} className="mb-3 text-xs font-semibold text-teal-800 hover:text-teal-950">← Tableau de bord</button><p className="text-xs font-bold uppercase text-teal-800">Locaux et affectations pédagogiques</p><h1 className="mt-1 text-2xl font-bold text-slate-900">Gestion des salles</h1><p className="mt-1 text-sm text-slate-500">Registre, disponibilité, affectations hebdomadaires et capacité{activeYear ? ` · ${activeYear.libelle}` : ''}.</p></div><div className="flex flex-wrap gap-2">{activeTab === 'salles' && hasAccess('salles', 'read') && hasAccess('salles', 'create') && <button type="button" onClick={() => { setError(''); setRoomDialog({ room: null }); }} className="inline-flex items-center gap-2 bg-teal-800 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-teal-900"><Plus className="h-4 w-4" /> Nouvelle salle</button>}{activeTab === 'affectations' && canReadPlanning && hasAccess('emplois-temps', 'create') && <button type="button" onClick={() => { setError(''); setAssignmentDialog({ assignment: null }); }} className="inline-flex items-center gap-2 bg-teal-800 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-teal-900"><Plus className="h-4 w-4" /> Affecter une classe</button>}</div></header>
+    <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><button type="button" onClick={onBack} className="mb-3 text-xs font-semibold text-teal-800 hover:text-teal-950">← Tableau de bord</button><p className="text-xs font-bold uppercase text-teal-800">Locaux et affectations pédagogiques</p><h1 className="mt-1 text-2xl font-bold text-slate-900">Gestion des salles</h1><p className="mt-1 text-sm text-slate-500">Registre, disponibilité, affectations hebdomadaires et capacité{activeYear ? ` · ${activeYear.libelle}` : ''}.</p></div><div className="flex flex-wrap gap-2">{activeTab === 'salles' && hasAccess('salles', 'read') && hasAccess('salles', 'create') && <button type="button" onClick={() => { setError(''); setRoomDialog({ room: null }); }} disabled={roomPrerequisites.blocked} title={roomPrerequisites.blocked ? 'Créez d’abord un formateur disponible (voir le message ci-dessous)' : undefined} className="inline-flex items-center gap-2 bg-brand-charcoal px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-brand-gold disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-4 w-4" /> Nouvelle salle</button>}{activeTab === 'affectations' && canReadPlanning && hasAccess('emplois-temps', 'create') && <button type="button" onClick={() => { setError(''); setAssignmentDialog({ assignment: null }); }} disabled={prerequisites.blocked} title={prerequisites.blocked ? 'Complétez d’abord les prérequis indiqués' : undefined} className="inline-flex items-center gap-2 bg-brand-charcoal px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-brand-gold disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-4 w-4" /> Affecter une classe</button>}</div></header>
     {loading && <div role="status" className="border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Chargement des salles, groupes et emplois du temps…</div>}
     {!loading && !error && hasAccess('organisation-pedagogique', 'read') && !activeYear && <div role="status" className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Aucune année scolaire n’est enregistrée; les salles restent gérables, mais les affectations nécessitent une année active.</div>}
     {!loading && <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><RoomMetric label="Salles au catalogue" value={counts.total} tone="slate" /><RoomMetric label="Disponibles" value={counts.available} tone="green" /><RoomMetric label="Indisponibles" value={counts.unavailable} tone="red" /></section>}
     {error && <div role="alert" className="border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
     {notice && <div role="status" className="border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div>}
     {!loading && !hasAccess('salles', 'read') && <div role="alert" className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Vous n’avez pas la permission de consulter les salles.</div>}
-    {!loading && hasAccess('salles', 'read') && <nav aria-label="Sections de gestion des salles" className="flex gap-1 overflow-x-auto border-b border-slate-200">{tabs.filter((tab) => tab.id === 'salles' || tab.id === 'disponibilite' || (tab.id === 'statistiques' && canReadStatistics) || (tab.id === 'affectations' && canReadPlanning)).map((tab) => { const Icon = tab.icon; const selected = activeTab === tab.id; return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} aria-current={selected ? 'page' : undefined} className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold ${selected ? 'border-teal-700 text-teal-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'}`}><Icon className="h-4 w-4" />{tab.label}</button>; })}</nav>}
+    {!loading && hasAccess('salles', 'read') && <SubTabNav label="Sections de gestion des salles" items={tabs.filter((tab) => tab.id === 'salles' || tab.id === 'disponibilite' || (tab.id === 'statistiques' && canReadStatistics) || (tab.id === 'affectations' && canReadPlanning))} active={activeTab} onChange={setActiveTab} />}
     {!loading && hasAccess('salles', 'read') && activeTab === 'salles' && <>
       <div className="border-l-2 border-sky-600 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-950">Chaque salle a un seul formateur attitré, présent tous les jours. Les auditeurs de la salle changent selon le jour. Un groupe trop nombreux est réparti sur plusieurs salles.</div>
-      <ListeSalles rooms={rooms} onNew={() => { setError(''); setRoomDialog({ room: null }); }} onEdit={(room) => { setError(''); setRoomDialog({ room }); }} onDelete={removeRoom} onStatusChange={quickStatus} canCreate={hasAccess('salles', 'create')} canUpdate={hasAccess('salles', 'update')} canDelete={hasAccess('salles', 'delete')} canExport={hasAccess('salles', 'export')} />
+      <PrerequisiteBanner prerequisites={roomPrerequisites} action="de créer une salle" />
+      <ListeSalles rooms={rooms} onNew={() => { setError(''); setRoomDialog({ room: null }); }} onEdit={(room) => { setError(''); setRoomDialog({ room }); }} onDelete={removeRoom} onStatusChange={quickStatus} canCreate={hasAccess('salles', 'create') && !roomPrerequisites.blocked} canUpdate={hasAccess('salles', 'update')} canDelete={hasAccess('salles', 'delete')} canExport={hasAccess('salles', 'export')} />
     </>}
     {!loading && activeTab === 'affectations' && canReadPlanning && <>
+      <PrerequisiteBanner prerequisites={prerequisites} action="d’affecter une classe" />
       <div className="border-l-2 border-amber-500 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-950">Affectez un groupe à une salle pour un jour. Le formateur de la salle est repris automatiquement. Un même groupe peut être affecté à plusieurs salles le même jour.</div>
       <AffectationsSalles assignments={assignments} years={data.annees_scolaires} sessions={data.sessions} rooms={rooms} groups={data.groupes} onNew={() => { setError(''); setAssignmentDialog({ assignment: null }); }} onEdit={(assignment) => { setError(''); setAssignmentDialog({ assignment }); }} onDelete={removeAssignment} canCreate={hasAccess('emplois-temps', 'create')} canUpdate={hasAccess('emplois-temps', 'update')} canDelete={hasAccess('emplois-temps', 'delete')} />
     </>}
     {!loading && hasAccess('salles', 'read') && activeTab === 'disponibilite' && <DisponibiliteSalles rooms={rooms} />}
     {!loading && hasAccess('salles', 'read') && canReadStatistics && activeTab === 'statistiques' && <StatistiquesSalles data={data} rooms={rooms} years={data.annees_scolaires} />}
-    {roomDialog && <RoomFormDialog room={roomDialog.room} trainers={data.formateurs} error={error} onClose={() => setRoomDialog(null)} onSave={saveRoomRecord} />}
-    {assignmentDialog && <AssignmentFormDialog assignment={assignmentDialog.assignment} data={data} error={error} onClose={() => setAssignmentDialog(null)} onSave={saveAssignment} />}
+    {roomDialog && <RoomFormDialog key={roomDialog.key ?? 'room'} room={roomDialog.room} trainers={data.formateurs} error={error} onClose={() => setRoomDialog(null)} onSave={saveRoomRecord} />}
+    {assignmentDialog && <AssignmentFormDialog key={assignmentDialog.key ?? 'assignment'} assignment={assignmentDialog.assignment} preset={assignmentDialog.preset} onCreateRoom={hasAccess('salles', 'create') ? (record) => saveRoomRecord(record, 'inline') : null} data={data} error={error} onClose={() => setAssignmentDialog(null)} onSave={saveAssignment} />}
   </div>;
 }

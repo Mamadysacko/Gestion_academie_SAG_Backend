@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Download, Printer, Search, SquarePen, Trash2 } from 'lucide-react';
 import { exportRoomsCsv, ROOM_STATUSES } from './sallesHelpers';
 import { RoomFilter } from './SallesComponents';
+import { printPage } from '../../utils/print';
 
 const PAGE_SIZES = [10, 20, 50];
 const SORTABLE_COLUMNS = [
@@ -56,7 +57,7 @@ export default function ListeSalles({
           <label className="relative block"><span className="mb-1.5 block text-[11px] font-bold uppercase text-slate-500">Recherche code ou nom</span><Search className="absolute left-3 top-9 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Ex. A-101" className="w-full border border-slate-300 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-teal-700" /></label>
           <RoomFilter label="Statut" value={status} onChange={(value) => { setStatus(value); setPage(1); }} options={ROOM_STATUSES} />
         </div>
-        <div className="flex flex-wrap gap-2">{canExport && <button type="button" onClick={() => exportRoomsCsv(filteredRooms)} disabled={!filteredRooms.length} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Download className="h-4 w-4" /> Excel / CSV</button>}<button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Printer className="h-4 w-4" /> PDF / imprimer</button>{canCreate && <button type="button" onClick={onNew} className="bg-teal-800 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-teal-900">Nouvelle salle</button>}</div>
+        <div className="flex flex-wrap gap-2">{canExport && <button type="button" onClick={() => exportRoomsCsv(filteredRooms)} disabled={!filteredRooms.length} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Download className="h-4 w-4" /> Excel / CSV</button>}<button type="button" onClick={() => printPage('Registre des salles')} className="inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Printer className="h-4 w-4" /> PDF / imprimer</button>{canCreate && <button type="button" onClick={onNew} className="bg-teal-800 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-teal-900">Nouvelle salle</button>}</div>
       </div>
     </section>
 

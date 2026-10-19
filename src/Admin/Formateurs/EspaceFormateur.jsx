@@ -10,6 +10,9 @@ import { AppreciationBadge } from '../EvaluationsNotes/ResultatsComponents';
 import { appreciationFor } from '../EvaluationsNotes/resultatsHelpers';
 import MesResultats from './MesResultats';
 import { useToastNotice } from '../../composant/toastContext';
+import SubTabNav from '../../composant/SubTabNav';
+import LeaveDialog from '../Presences/LeaveDialog';
+import { PERIOD_STATUSES, observationText } from '../../utils/leave';
 
 const rows = (value) => Array.isArray(value) ? value : [];
 const isActive = (value) => Number(value) === 1;
@@ -65,7 +68,7 @@ function scheduleOccurrences(schedule, start, end) {
   return occurrences;
 }
 
-export default function EspaceFormateur({ currentUser, onBack }) {
+export default function EspaceFormateur({ currentUser, onBack, initialTab }) {
   const { language, t } = useLanguage();
   const role = String(currentUser?.role_code || currentUser?.role || '').toLocaleLowerCase('fr');
   const permissionKey = JSON.stringify(
@@ -93,7 +96,7 @@ export default function EspaceFormateur({ currentUser, onBack }) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [section, setSection] = useState('schedule');
+  const [section, setSection] = useState(initialTab || 'schedule');
   const [scheduleDate, setScheduleDate] = useState(currentDate);
   const [historyStart, setHistoryStart] = useState('');
   const [historyEnd, setHistoryEnd] = useState('');
@@ -102,6 +105,7 @@ export default function EspaceFormateur({ currentUser, onBack }) {
   const [selectedRoom, setSelectedRoom] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [attendanceSavingId, setAttendanceSavingId] = useState(null);
+  const [leaveRequest, setLeaveRequest] = useState(null);
   const [attendanceNotice, setAttendanceNotice] = useToastNotice();
   const [gradeScheduleId, setGradeScheduleId] = useState('');
   const [gradeEvaluationId, setGradeEvaluationId] = useState('');
@@ -356,8 +360,13 @@ export default function EspaceFormateur({ currentUser, onBack }) {
     : sections[0]?.id || '';
 
   const statusLabel = (status) => status === 'active' || isActive(status) ? t('active') : t('inactive');
-  const markStudentAttendance = async (learner, status) => {
+  const markStudentAttendance = async (learner, status, extra = {}) => {
     if (!status || attendanceSavingId !== null || (!canCreateAttendance && !canUpdateAttendance)) return;
+    // Congé et permission : la même fenêtre demande la période avant d'enregistrer.
+    if (PERIOD_STATUSES.includes(status) && !extra.conge_date_debut) {
+      setLeaveRequest({ learner, status });
+      return;
+    }
     setAttendanceSavingId(learner.id_inscription);
     setError('');
     setAttendanceNotice('');
@@ -368,8 +377,8 @@ export default function EspaceFormateur({ currentUser, onBack }) {
         date_presence: scheduleDate,
         id_annee: learner.id_annee,
         statut: status,
-        conge_date_debut: status === 'conge' ? scheduleDate : null,
-        conge_date_fin: status === 'conge' ? scheduleDate : null,
+        conge_date_debut: PERIOD_STATUSES.includes(status) ? extra.conge_date_debut : null,
+        conge_date_fin: PERIOD_STATUSES.includes(status) ? extra.conge_date_fin : null,
       });
       const learnerSchedule = data.schedules.find(
         (schedule) => String(schedule.id) === String(learner.id_emploi_du_temps)
@@ -387,6 +396,8 @@ export default function EspaceFormateur({ currentUser, onBack }) {
             date_presence: scheduleDate,
             statut: status,
             observation: null,
+            conge_date_debut: PERIOD_STATUSES.includes(status) ? extra.conge_date_debut : null,
+            conge_date_fin: PERIOD_STATUSES.includes(status) ? extra.conge_date_fin : null,
             auditeur_nom: learner.auditeur_nom,
             auditeur_prenom: learner.auditeur_prenom,
             groupe_libelle: learnerSchedule?.groupe_libelle || learner.groupe_libelle,
@@ -530,19 +541,16 @@ export default function EspaceFormateur({ currentUser, onBack }) {
         ))}
       </section>
 
-      <nav aria-label={t('trainerSpace')} className="flex gap-1 overflow-x-auto border-b border-slate-200">
-        {sections.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setSection(id)}
-            aria-current={activeSection === id ? 'page' : undefined}
-            className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-xs font-semibold ${activeSection === id ? 'border-teal-700 text-teal-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-          >
-            <Icon className="h-4 w-4" />{label}
-          </button>
-        ))}
-      </nav>
+      {leaveRequest && (
+        <LeaveDialog
+          kind={leaveRequest.status}
+          person={`${leaveRequest.learner.auditeur_prenom} ${leaveRequest.learner.auditeur_nom}`}
+          date={scheduleDate}
+          onClose={() => setLeaveRequest(null)}
+          onConfirm={({ debut, fin }) => { const { learner, status } = leaveRequest; setLeaveRequest(null); markStudentAttendance(learner, status, { conge_date_debut: debut, conge_date_fin: fin }); }}
+        />
+      )}
+      <SubTabNav label={t('trainerSpace')} items={sections} active={activeSection} onChange={setSection} />
 
       {loading ? (
         <div role="status" className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">{t('loading')}</div>
@@ -721,7 +729,7 @@ export default function EspaceFormateur({ currentUser, onBack }) {
                           <td className="px-4 py-3 text-slate-700">{scheduleLabel(learner.id_emploi_du_temps)}</td>
                           <td className="px-4 py-3 text-slate-700">{learner.salle_code || ''} {learner.salle_libelle || '—'}</td>
                           <td className="px-4 py-3 font-semibold text-slate-700">{attendance ? t(attendance.statut) : t('attendanceNotMarked')}</td>
-                          <td className="px-4 py-3 text-slate-600">{attendance?.observation || '—'}</td>
+                          <td className="px-4 py-3 text-slate-600">{observationText(attendance) || '—'}</td>
                           <td className="px-4 py-3">
                             <select
                               aria-label={`${t('markAttendance')}: ${learner.auditeur_prenom} ${learner.auditeur_nom}`}
@@ -975,10 +983,6 @@ export default function EspaceFormateur({ currentUser, onBack }) {
 
               {/* KPIs notes */}
               {filteredGrades.length > 0 && (() => {
-                const gradeValues = filteredGrades.filter((r) => r.note !== null && r.note !== undefined).map((r) => Number(r.note)).filter((n) => !Number.isNaN(n));
-                const avg = gradeValues.length
-                  ? Math.round((gradeValues.reduce((sum, n) => sum + n, 0) / gradeValues.length) * 10) / 10
-                  : null;
                 const evaluations = [...new Set(filteredGrades.map((r) => r.evaluation_libelle).filter(Boolean))];
                 const students = [...new Set(filteredGrades.map((r) => `${r.auditeur_prenom} ${r.auditeur_nom}`).filter(Boolean))];
                 return (
@@ -1033,7 +1037,7 @@ function StatusBadge({ statut }) {
   );
 }
 
-function AttendanceHistoryTable({ rows, emptyMessage, dateLabel, t, schedules }) {
+function AttendanceHistoryTable({ rows, emptyMessage, dateLabel }) {
   if (!rows.length) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-16">
@@ -1116,7 +1120,7 @@ function AttendanceHistoryTable({ rows, emptyMessage, dateLabel, t, schedules })
                           <StatusBadge statut={row.statut} />
                         </td>
                         <td className="max-w-56 px-4 py-3 text-slate-500">
-                          {row.observation || <span className="italic text-slate-300">Aucune</span>}
+                          {observationText(row) || <span className="italic text-slate-300">Aucune</span>}
                         </td>
                       </tr>
                     ))}

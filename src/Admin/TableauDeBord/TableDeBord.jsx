@@ -36,29 +36,33 @@ function formatDate(value) {
 
 // ─── sub-components ─────────────────────────────────────────────────────────
 
-function MetricCard({ title, value, detail, icon: Icon, tone = 'blue' }) {
+function MetricCard({ title, value, detail, icon: Icon, tone = 'blue', index = 0 }) {
   const tones = {
-    blue:   'bg-blue-50   text-blue-700   ring-blue-100',
-    violet: 'bg-violet-50 text-violet-700 ring-violet-100',
-    emerald:'bg-emerald-50 text-emerald-700 ring-emerald-100',
-    amber:  'bg-amber-50  text-amber-700  ring-amber-100',
-    rose:   'bg-rose-50   text-rose-700   ring-rose-100',
-    sky:    'bg-sky-50    text-sky-700    ring-sky-100',
-    teal:   'bg-teal-50   text-teal-700   ring-teal-100',
+    blue:   { icon: 'bg-teal-50 text-teal-700 ring-teal-200',         bar: 'bg-brand-gold' },
+    violet: { icon: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200', bar: 'bg-brand-bordeaux' },
+    emerald:{ icon: 'bg-emerald-50 text-emerald-700 ring-emerald-200', bar: 'bg-brand-green' },
+    amber:  { icon: 'bg-amber-50 text-amber-700 ring-amber-200',       bar: 'bg-brand-yellow' },
+    rose:   { icon: 'bg-rose-50 text-rose-700 ring-rose-200',          bar: 'bg-brand-red' },
+    sky:    { icon: 'bg-orange-50 text-orange-700 ring-orange-200',    bar: 'bg-brand-anglo' },
+    teal:   { icon: 'bg-slate-100 text-slate-700 ring-slate-200',      bar: 'bg-brand-charcoal' },
   };
+  const style = tones[tone] ?? tones.blue;
   return (
     <motion.article
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.3 }}
+      whileHover={{ y: -3 }}
+      className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5"
     >
+      <span className={`absolute inset-x-0 top-0 h-1 ${style.bar}`} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
-          {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+          <p className="mt-2 break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{value}</p>
+          {detail && <p className="mt-1.5 text-xs leading-5 text-slate-500">{detail}</p>}
         </div>
-        <span className={`shrink-0 rounded-xl p-3 ring-1 ${tones[tone] ?? tones.blue}`}>
+        <span className={`shrink-0 rounded-xl p-2.5 ring-1 sm:p-3 ${style.icon}`}>
           <Icon className="h-5 w-5" />
         </span>
       </div>
@@ -66,12 +70,22 @@ function MetricCard({ title, value, detail, icon: Icon, tone = 'blue' }) {
   );
 }
 
+function SectionTitle({ children }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="h-5 w-1 rounded-full bg-brand-gold" aria-hidden="true" />
+      <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">{children}</h2>
+      <span className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent" aria-hidden="true" />
+    </div>
+  );
+}
+
 function Panel({ title, subtitle, children, action }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
-          <h2 className="font-semibold text-slate-900">{title}</h2>
+          <h2 className="font-bold text-slate-900">{title}</h2>
           {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
         </div>
         {action}
@@ -111,7 +125,7 @@ function EnrollmentBreakdown({ title, subtitle, rows, emptyMessage }) {
                   aria-valuemin={0} aria-valuemax={maxAuditeurs} aria-valuenow={auditeurs}
                   className="h-2 overflow-hidden rounded-full bg-slate-100"
                 >
-                  <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${width}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-brand-gold to-brand-gold-light transition-all" style={{ width: `${width}%` }} />
                 </div>
                 <p className="text-right text-xs text-slate-500">
                   {formatNumber(inscriptions)} inscription(s) active(s)
@@ -129,12 +143,12 @@ function EnrollmentBreakdown({ title, subtitle, rows, emptyMessage }) {
 
 // ─── main component ──────────────────────────────────────────────────────────
 
-export default function TableDeBord({ setActiveTab, currentUser }) {
+export default function TableDeBord({ setActiveTab, currentUser, initialTab }) {
   const canRead = currentUser?.role_code === 'admin'
     || currentUser?.role === 'admin'
     || (currentUser?.permissions?.['organisation-pedagogique'] || []).includes('read');
 
-  const [view, setView]           = useState('overview');
+  const [view, setView]           = useState(initialTab || 'overview');
   const [date, setDate]           = useState(localDateString());
   const [yearId, setYearId]       = useState('');
   const [sessionId, setSessionId] = useState('');
@@ -181,7 +195,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
 
   // Initial load + re-load when filters change
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(); // eslint-disable-line react-hooks/set-state-in-effect -- chargement initial et à chaque changement de filtre
   }, [fetchDashboard, date, yearId, sessionId]);
 
   // Rafraîchissement silencieux : après chaque opération dans l'application, au retour
@@ -212,27 +226,35 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
   //  RENDER
   // ════════════════════════════════════════════════════════════════
   return (
-    <main className="space-y-6 pb-8">
+    <div className="space-y-6 pb-8">
 
       {/* ── Hero header ── */}
-      <header className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-lg md:p-8">
-        <div className="flex flex-col justify-between gap-6 xl:flex-row xl:items-end">
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-charcoal via-slate-800 to-brand-bordeaux p-5 text-white shadow-lg sm:p-6 md:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-gold/25 blur-3xl" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-brand-gold-light/10 blur-3xl" aria-hidden="true" />
+        <span className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-brand-gold via-brand-gold-light to-brand-gold" aria-hidden="true" />
+        <div className="relative flex flex-col justify-between gap-6 xl:flex-row xl:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Pilotage académique</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">Tableau de bord</h1>
-            <p className="mt-2 max-w-2xl text-sm text-blue-100">
-              Indicateurs en temps réel sur les inscriptions, présences, ressources, évaluations et décisions.
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-gold-light">Pilotage académique</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
+              Bonjour{currentUser?.prenom ? `, ${currentUser.prenom}` : ''}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-300">
+              Vue générale en temps réel : inscriptions, présences, ressources, évaluations et décisions.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Sections du tableau de bord">
+          <div className="flex w-full gap-1 rounded-2xl bg-white/10 p-1 backdrop-blur xl:w-auto" role="tablist" aria-label="Sections du tableau de bord">
             {[['overview', "Vue d'ensemble"], ['reports', 'Rapports'], ['fiche', 'Fiche journalière']].map(([key, label]) => (
               <button
                 key={key} type="button" role="tab" aria-selected={view === key}
                 onClick={() => setView(key)}
-                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition
-                  ${view === key ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                className={`relative flex-1 rounded-xl px-3 py-2.5 text-xs font-semibold transition sm:px-4 sm:text-sm xl:flex-none
+                  ${view === key ? 'text-brand-charcoal' : 'text-white/80 hover:text-white'}`}
               >
-                {label}
+                {view === key && (
+                  <motion.span layoutId="dashboard-tab" className="absolute inset-0 rounded-xl bg-brand-gold-light" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />
+                )}
+                <span className="relative">{label}</span>
               </button>
             ))}
           </div>
@@ -247,13 +269,13 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Périmètre des indicateurs
               </p>
-              <div className="flex flex-wrap gap-3">
+              <div className="grid gap-3 sm:flex sm:flex-wrap">
                 <label className="grid gap-1 text-xs font-medium text-slate-600">
                   Année scolaire
                   <select
                     value={yearId}
                     onChange={(e) => { setYearId(e.target.value); setSessionId(''); }}
-                    className="min-w-44 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl sm:min-w-44 sm:w-auto border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"
                   >
                     <option value="">Toutes les années</option>
                     {(dashboard?.filters?.annees || []).map((y) => (
@@ -266,7 +288,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                   <select
                     value={sessionId}
                     onChange={(e) => setSessionId(e.target.value)}
-                    className="min-w-52 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl sm:min-w-52 sm:w-auto border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800"
                   >
                     <option value="">Toutes les sessions</option>
                     {activeSessions.map((s) => (
@@ -279,12 +301,12 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                   <input
                     type="date" value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 sm:w-auto"
                   />
                 </label>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Live refresh indicator */}
               {silentRefreshing && (
                 <span className="flex items-center gap-1.5 text-xs text-slate-400">
@@ -300,7 +322,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                 type="button"
                 onClick={() => fetchDashboard()}
                 disabled={loading || silentRefreshing}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-charcoal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-gold disabled:cursor-wait disabled:opacity-60"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Actualiser
@@ -336,8 +358,10 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                 </div>
 
                 {/* ── KPI grid ── */}
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <SectionTitle>Effectifs et pédagogie</SectionTitle>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4">
                   <MetricCard
+                    index={0}
                     title="Auditeurs actifs (périmètre)"
                     value={formatNumber(kpis.auditeurs_actifs)}
                     detail={`${formatNumber(kpis.inscriptions_actives)} inscriptions actives`}
@@ -345,6 +369,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="blue"
                   />
                   <MetricCard
+                    index={1}
                     title="Auditeurs total (académie)"
                     value={formatNumber(kpis.auditeurs_total)}
                     detail="Tous auditeurs enregistrés"
@@ -352,6 +377,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="sky"
                   />
                   <MetricCard
+                    index={2}
                     title="Groupes actifs"
                     value={formatNumber(kpis.groupes_actifs)}
                     detail={`${formatNumber(kpis.sessions_en_cours)} session(s) en cours · ${formatNumber(kpis.sessions_total)} total`}
@@ -359,13 +385,19 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="violet"
                   />
                   <MetricCard
+                    index={3}
                     title="Taux de présence du jour"
                     value={presenceRate}
                     detail={`${formatNumber(kpis.pointes_du_jour)} / ${formatNumber(kpis.attendus_du_jour)} auditeur(s) attendu(s) pointé(s) · ${formatNumber(kpis.non_pointes_du_jour)} à pointer`}
                     icon={Activity}
                     tone="emerald"
                   />
+                </div>
+
+                <SectionTitle>Ressources et résultats</SectionTitle>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 sm:gap-4">
                   <MetricCard
+                    index={4}
                     title="Formateurs actifs"
                     value={formatNumber(kpis.formateurs_actifs)}
                     detail="Effectif global actif"
@@ -373,6 +405,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="teal"
                   />
                   <MetricCard
+                    index={5}
                     title="Salles disponibles"
                     value={`${formatNumber(kpis.salles_disponibles)} / ${formatNumber(kpis.salles_total)}`}
                     detail={`${formatNumber(kpis.salles_occupees)} salle(s) planifiée(s) dans le périmètre`}
@@ -380,6 +413,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="amber"
                   />
                   <MetricCard
+                    index={6}
                     title="Résultats des sessions"
                     value={`${formatNumber(kpis.resultats_admis)} admis`}
                     detail={`${formatNumber(kpis.resultats_non_admis)} non admis · ${formatNumber(kpis.resultats_en_attente)} en attente · ${formatNumber(kpis.decisions_total)} décision(s) validée(s)`}
@@ -387,13 +421,19 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="violet"
                   />
                   <MetricCard
+                    index={7}
                     title="Moyenne générale"
                     value={kpis.moyenne_generale != null ? `${Number(kpis.moyenne_generale).toFixed(2)} /4` : '—'}
                     detail={`${formatNumber(kpis.notes_manquantes)} note(s) manquante(s) dans le périmètre`}
                     icon={TrendingUp}
                     tone="teal"
                   />
+                </div>
+
+                <SectionTitle>Évaluations et capacité</SectionTitle>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
                   <MetricCard
+                    index={8}
                     title="Évaluations réalisées"
                     value={formatNumber(kpis.evaluations_realisees)}
                     detail="Évaluations dont la date est passée"
@@ -401,6 +441,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="emerald"
                   />
                   <MetricCard
+                    index={9}
                     title="Évaluations à venir"
                     value={formatNumber(kpis.evaluations_a_venir)}
                     detail="Dans les 30 prochains jours"
@@ -408,6 +449,7 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     tone="rose"
                   />
                   <MetricCard
+                    index={10}
                     title="Places configurées"
                     value={formatNumber(kpis.capacite_totale_groupes)}
                     detail={`${formatNumber(dashboard.capacite?.depassements)} inscription(s) au-delà de la capacité`}
@@ -425,9 +467,9 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     {[
                       { label: 'Présent',         value: dashboard.presence_jour?.present,         color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
                       { label: 'Absent',           value: dashboard.presence_jour?.absent,          color: 'text-rose-700',    bg: 'bg-rose-50 border-rose-200' },
-                      { label: 'Permissionnaire',  value: dashboard.presence_jour?.permissionnaire, color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200' },
+                      { label: 'Permissionnaire',  value: dashboard.presence_jour?.permissionnaire, color: 'text-fuchsia-700', bg: 'bg-fuchsia-50 border-fuchsia-200' },
                       { label: 'Malade',           value: dashboard.presence_jour?.malade,          color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
-                      { label: 'Congé',            value: dashboard.presence_jour?.conge,           color: 'text-sky-700',     bg: 'bg-sky-50 border-sky-200' },
+                      { label: 'Congé',            value: dashboard.presence_jour?.conge,           color: 'text-orange-700',  bg: 'bg-orange-50 border-orange-200' },
                     ].map(({ label, value, color, bg }) => (
                       <div key={label} className={`rounded-xl border p-4 ${bg}`}>
                         <p className="text-xs font-medium text-current/70">{label}</p>
@@ -449,13 +491,13 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     subtitle="Répartition quotidienne par statut dans le périmètre sélectionné"
                   >
                     {dashboard.series?.presences?.some((point) => Number(point.total) > 0) ? (
-                      <div className="h-72">
+                      <div className="h-64 sm:h-72">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={dashboard.series.presences}
                             margin={{ top: 8, right: 8, left: -18, bottom: 18 }}
                           >
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#E2DFD9" vertical={false} />
                             <XAxis
                               dataKey="label"
                               interval={0}
@@ -467,13 +509,13 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                               tick={{ fontSize: 11, textAnchor: 'end' }}
                             />
                             <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                            <Tooltip />
+                            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2DFD9', fontSize: 12 }} />
                             <Legend wrapperStyle={{ fontSize: 11 }} />
-                            <Bar dataKey="present" name="Présent" stackId="s" fill="#10b981" />
-                            <Bar dataKey="absent" name="Absent" stackId="s" fill="#f43f5e" />
-                            <Bar dataKey="permissionnaire" name="Permissionnaire" stackId="s" fill="#8b5cf6" />
-                            <Bar dataKey="malade" name="Malade" stackId="s" fill="#f59e0b" />
-                            <Bar dataKey="conge" name="Congé" stackId="s" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="present" name="Présent" stackId="s" fill="#39C832" />
+                            <Bar dataKey="absent" name="Absent" stackId="s" fill="#C82927" />
+                            <Bar dataKey="permissionnaire" name="Permissionnaire" stackId="s" fill="#A97324" />
+                            <Bar dataKey="malade" name="Malade" stackId="s" fill="#F2D719" />
+                            <Bar dataKey="conge" name="Congé" stackId="s" fill="#572A27" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -488,20 +530,20 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
                     title="Évolution des inscriptions"
                     subtitle="Nouvelles inscriptions par mois dans le périmètre sélectionné"
                   >
-                    <div className="h-72">
+                    <div className="h-64 sm:h-72">
                       {(dashboard.series?.inscriptions || []).length ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart
                             data={dashboard.series.inscriptions}
                             margin={{ top: 8, right: 12, left: -18, bottom: 2 }}
                           >
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#E2DFD9" vertical={false} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                             <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                            <Tooltip />
+                            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2DFD9', fontSize: 12 }} />
                             <Line
                               type="monotone" dataKey="total" name="Inscriptions"
-                              stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }}
+                              stroke="#A97324" strokeWidth={3} dot={{ r: 4 }}
                               activeDot={{ r: 6 }}
                             />
                           </LineChart>
@@ -710,6 +752,6 @@ export default function TableDeBord({ setActiveTab, currentUser }) {
           selectedSession={sessionId}
         />
       )}
-    </main>
+    </div>
   );
 }

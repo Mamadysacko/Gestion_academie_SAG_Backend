@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, RefreshCw, AlertCircle } from 'lucide-react';
 import { STATUT_CONFIG } from './auditeursHelpers';
+import ModalOverlay from '../../composant/ModalOverlay';
 
 export default function StatutChangeDialog({
   isOpen,
@@ -37,12 +38,7 @@ export default function StatutChangeDialog({
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <ModalOverlay onClose={() => { onClose(); }}>
       <div
         role="dialog"
         aria-modal="true"
@@ -153,6 +149,6 @@ export default function StatutChangeDialog({
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }
