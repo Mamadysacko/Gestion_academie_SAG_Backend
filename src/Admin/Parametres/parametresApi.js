@@ -9,6 +9,7 @@ const RESOURCE_ENDPOINTS = {
   'types-formations': 'types-formations',
   'types-formation': 'types-formations',
   'types-employes': 'types-employes',
+  positions: 'positions',
   'regles-passage': 'regles-passage',
   'baremes-appreciation': 'baremes-appreciation',
   sessions: 'sessions',

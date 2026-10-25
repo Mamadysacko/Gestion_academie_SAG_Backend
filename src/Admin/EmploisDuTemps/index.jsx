@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, CalendarDays, CalendarRange, Plus, RefreshCw, Users, X } from 'lucide-react';
+import { AlertCircle, BarChart3, CalendarDays, CalendarRange, Plus, RefreshCw, Settings2, Users, Wand2, X } from 'lucide-react';
 import { emploisApi } from '../../config/apiService';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
 import { loadPlanningData } from '../planningData';
@@ -11,6 +11,8 @@ import PlanningGroupe from './PlanningGroupe';
 import Calendrier from './Calendrier';
 import NouvelleAffectation from './NouvelleAffectation';
 import Statistiques from './Statistiques';
+import PlanificationAuto from './PlanificationAuto';
+import FormationsConfig from './FormationsConfig';
 import { useToastNotice } from '../../composant/toastContext';
 import SubTabNav from '../../composant/SubTabNav';
 import PrerequisiteBanner from '../../aide/Prerequisites';
@@ -27,6 +29,8 @@ export default function EmploisDuTemps({ onBack, currentUser, initialTab }) {
   const isTrainer = (currentUser?.role_code || currentUser?.role) === 'formateur';
   const can = (action) => isAdmin || (currentUser?.permissions?.['emplois-temps'] || []).includes(action);
   const canRead = can('read');
+  const canOrganise = isAdmin || (currentUser?.permissions?.['organisation-pedagogique'] || []).includes('update');
+  const canShareRooms = isAdmin || (currentUser?.permissions?.salles || []).includes('validate');
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState(initialTab || 'calendrier');
   const [data, setData] = useState(emptyData);
@@ -36,6 +40,7 @@ export default function EmploisDuTemps({ onBack, currentUser, initialTab }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useToastNotice();
+  const flash = (message) => { setNotice(message); window.setTimeout(() => setNotice(''), 4500); };
 
   const fetchData = useCallback(async () => {
     const planning = await loadPlanningData(currentUser);
@@ -81,7 +86,9 @@ export default function EmploisDuTemps({ onBack, currentUser, initialTab }) {
       });
     return () => { isMounted = false; };
   }, [canRead, fetchData]);
-  useLiveRefresh(() => fetchData().then((result) => setData(result.data)).catch(() => {}), { enabled: canRead, intervalMs: 60000 });
+  // Rechargement silencieux après une planification ou un déplacement (sans indicateur de chargement).
+  const refreshData = useCallback(() => fetchData().then((result) => setData(result.data)), [fetchData]);
+  useLiveRefresh(() => refreshData().catch(() => {}), { enabled: canRead, intervalMs: 60000 });
 
   const yearSchedules = useMemo(
     () => data.emplois_du_temps.filter((item) => !selectedYear || Number(item.id_annee) === Number(selectedYear)),
@@ -157,6 +164,10 @@ Si des inscriptions ou présences y sont liées, la base refusera la suppression
     { id: 'planning_general', label: 'Vue générale', icon: CalendarDays },
     { id: 'groupe', label: 'Par groupe', icon: Users },
     { id: 'calendrier', label: 'Calendrier', icon: CalendarRange },
+    ...(!isTrainer ? [
+      { id: 'planification', label: 'Planification auto', icon: Wand2 },
+      { id: 'formations', label: 'Formations & salles', icon: Settings2 },
+    ] : []),
     { id: 'statistiques', label: 'Indicateurs', icon: BarChart3 },
   ];
 
@@ -220,7 +231,9 @@ Si des inscriptions ou présences y sont liées, la base refusera la suppression
         <section className="min-h-[420px]">
           {activeTab === 'planning_general' && <PlanningGeneral {...viewProps} />}
           {activeTab === 'groupe' && <PlanningGroupe {...viewProps} />}
-          {activeTab === 'calendrier' && <Calendrier data={viewProps.data} isTrainer={isTrainer} />}
+          {activeTab === 'calendrier' && <Calendrier data={viewProps.data} year={year} isTrainer={isTrainer} canUpdate={can('update')} onChanged={refreshData} />}
+          {activeTab === 'planification' && <PlanificationAuto data={data} year={year} canCreate={can('create')} canUpdate={can('update')} onChanged={refreshData} notify={flash} />}
+          {activeTab === 'formations' && <FormationsConfig data={data} canUpdate={canOrganise} canShare={canShareRooms} notify={flash} />}
           {activeTab === 'statistiques' && <Statistiques {...viewProps} />}
           {activeTab === 'affectation' && (
             <NouvelleAffectation

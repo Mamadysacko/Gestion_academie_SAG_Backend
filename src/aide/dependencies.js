@@ -15,7 +15,7 @@
 import {
   anneesScolairesApi, auditeursApi, departementsApi, emploisApi, evaluationsApi, formateursApi,
   groupesApi, inscriptionsApi, niveauxApi, notesApi, parametresEvaluationApi, presencesApi,
-  rolesApi, sallesApi, sessionsApi, typesEmployesApi, typesFormationsApi, usersApi,
+  positionsApi, rolesApi, sallesApi, sessionsApi, typesEmployesApi, typesFormationsApi, usersApi,
 } from '../config/apiService';
 
 export const STATE_LABELS = {
@@ -34,6 +34,7 @@ export const CHECKS = {
   types_formations: { label: 'Type de formation', permission: 'organisation-pedagogique', list: () => typesFormationsApi.getAll(), create: 'parametres/types' },
   niveaux: { label: 'Niveau', permission: 'organisation-pedagogique', list: () => niveauxApi.getAll(), create: 'parametres/niveaux' },
   departements: { label: 'Département', permission: 'organisation-pedagogique', list: () => departementsApi.getAll(), create: 'parametres/departements' },
+  positions: { label: 'Position', permission: 'auditeurs', list: () => positionsApi.getAll(), create: 'parametres/positions' },
   types_employes: { label: 'Type d’employé', permission: 'auditeurs', list: () => typesEmployesApi.getAll(), create: 'parametres/types-employes' },
   sessions: { label: 'Session', permission: 'organisation-pedagogique', list: () => sessionsApi.getAll(), create: 'parametres/sessions' },
   groupes: { label: 'Groupe', permission: 'organisation-pedagogique', list: () => groupesApi.getAll(), create: 'parametres/groupes' },
@@ -140,15 +141,4 @@ export function requirementsFor({ creates, extraRequires = [] }, schema) {
     ? (schema[creates]?.foreignKeys || []).filter((fk) => fk.required).map((fk) => fk.references)
     : [];
   return [...new Set([...fromSchema, ...extraRequires])];
-}
-
-/** Graphe complet des dépendances (table → tables parentes obligatoires) pour la visualisation. */
-export function dependencyGraph(schema) {
-  return Object.entries(schema)
-    .filter(([table]) => CHECKS[table])
-    .map(([table, { foreignKeys }]) => ({
-      table,
-      label: CHECKS[table].label,
-      parents: [...new Set(foreignKeys.filter((fk) => fk.required && CHECKS[fk.references]).map((fk) => fk.references))],
-    }));
 }

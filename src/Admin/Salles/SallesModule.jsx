@@ -3,6 +3,7 @@ import { useLiveRefresh } from '../../composant/useLiveRefresh';
 import { Building2, CalendarDays, ChartNoAxesCombined, MapPinned, Plus } from 'lucide-react';
 import { getRoomOccupancy, WEEKDAYS } from './sallesHelpers';
 import { AssignmentFormDialog, RoomFormDialog, RoomMetric } from './SallesComponents';
+import MultiAssignmentDialog from './AffectationMultiple';
 import ListeSalles from './ListeSalles';
 import AffectationsSalles from './AffectationsSalles';
 import DisponibiliteSalles from './DisponibiliteSalles';
@@ -221,6 +222,45 @@ export default function SallesModule({ onBack, currentUser, initialTab }) {
     }
   };
 
+  // Affectation en série : plusieurs groupes × plusieurs salles. Chaque couple est créé séparément ;
+  // ceux que le serveur refuse sont listés et la fenêtre reste ouverte pour les corriger.
+  const saveAssignments = async (records, mode = 'close') => {
+    const labelOf = (record) => {
+      const group = data.groupes.find((item) => item.id === Number(record.id_groupe));
+      const room = data.salles.find((item) => item.id === Number(record.id_salle));
+      return `${group?.code || '?'} → ${room?.code || '?'} (${WEEKDAYS.find((item) => item.value === Number(record.jour_semaine))?.label || ''})`;
+    };
+    if (mode !== 'continue' && !(await confirm({
+      title: records.length > 1 ? `Créer ${records.length} affectations ?` : 'Affecter ce groupe à la salle ?',
+      message: `${records.slice(0, 12).map(labelOf).join('\n')}${records.length > 12 ? `\n… et ${records.length - 12} autre(s)` : ''}\nLe formateur de chaque salle est repris automatiquement.`,
+      tone: 'primary',
+    }))) return;
+    const failures = [];
+    let created = 0;
+    for (const record of records) {
+      try {
+        await emploisApi.create({
+          id_annee: Number(record.id_annee), id_groupe: Number(record.id_groupe), id_salle: Number(record.id_salle),
+          id_formateur: Number(record.id_formateur), jour_semaine: Number(record.jour_semaine), statut: 1,
+        });
+        created += 1;
+      } catch (saveError) {
+        failures.push(`${labelOf(record)} : ${saveError.message || 'refusée'}`);
+      }
+    }
+    reloadData().catch(() => {});
+    if (created) setNotice(`${created} affectation(s) créée(s) dans l’emploi du temps partagé.`);
+    if (failures.length) {
+      setError(`${failures.length} affectation(s) refusée(s) par le serveur :\n${failures.join('\n')}`);
+      return;
+    }
+    setError('');
+    const last = records[records.length - 1];
+    setAssignmentDialog(mode === 'continue'
+      ? { assignment: null, key: Date.now(), preset: { id_annee: Number(last.id_annee), id_session: last.id_session || '', id_salle: null } }
+      : null);
+  };
+
   const removeAssignment = async (assignment) => {
     const label = `${assignment.group?.libelle || 'ce groupe'} · ${assignment.room?.code || 'cette salle'}`;
     const day = WEEKDAYS.find((item) => item.value === Number(assignment.jour_semaine))?.label || '';
@@ -261,6 +301,8 @@ export default function SallesModule({ onBack, currentUser, initialTab }) {
     {!loading && hasAccess('salles', 'read') && activeTab === 'disponibilite' && <DisponibiliteSalles rooms={rooms} />}
     {!loading && hasAccess('salles', 'read') && canReadStatistics && activeTab === 'statistiques' && <StatistiquesSalles data={data} rooms={rooms} years={data.annees_scolaires} />}
     {roomDialog && <RoomFormDialog key={roomDialog.key ?? 'room'} room={roomDialog.room} trainers={data.formateurs} error={error} onClose={() => setRoomDialog(null)} onSave={saveRoomRecord} />}
-    {assignmentDialog && <AssignmentFormDialog key={assignmentDialog.key ?? 'assignment'} assignment={assignmentDialog.assignment} preset={assignmentDialog.preset} onCreateRoom={hasAccess('salles', 'create') ? (record) => saveRoomRecord(record, 'inline') : null} data={data} error={error} onClose={() => setAssignmentDialog(null)} onSave={saveAssignment} />}
+    {assignmentDialog && (assignmentDialog.assignment
+      ? <AssignmentFormDialog key={assignmentDialog.key ?? 'assignment'} assignment={assignmentDialog.assignment} preset={assignmentDialog.preset} onCreateRoom={hasAccess('salles', 'create') ? (record) => saveRoomRecord(record, 'inline') : null} data={data} error={error} onClose={() => setAssignmentDialog(null)} onSave={saveAssignment} />
+      : <MultiAssignmentDialog key={assignmentDialog.key ?? 'assignment'} preset={assignmentDialog.preset} onCreateRoom={hasAccess('salles', 'create') ? (record) => saveRoomRecord(record, 'inline') : null} data={data} error={error} onClose={() => setAssignmentDialog(null)} onSaveMany={saveAssignments} />)}
   </div>;
 }

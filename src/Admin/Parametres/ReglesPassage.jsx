@@ -8,7 +8,7 @@ const definition = {
   label: 'Règles d’évaluation et de passage',
   singular: 'règle',
   icon: Scale,
-  description: 'La règle générale s’applique à tous les niveaux ; ajoutez une règle propre à un niveau pour la remplacer (nombre d’évaluations, moyenne d’admission, présence minimale, passage automatique).',
+  description: 'La règle générale s’applique à tous les niveaux ; ajoutez une règle propre à un niveau pour la remplacer (nombre d’évaluations, moyenne de réussite et présence minimale servant d’indicateurs statistiques). Le passage de niveau n’est jamais déduit de ces seuils : il est approuvé manuellement.',
   references: [{ key: 'niveaux', resource: 'niveaux' }],
   fields: [
     { key: 'libelle', label: 'Libellé', required: true, placeholder: 'Ex: Règle du niveau 2' },
@@ -21,9 +21,8 @@ const definition = {
       format: (value, refs, row) => row.niveau_libelle || (value ? value : 'Tous les niveaux (générale)'),
     },
     { key: 'nb_evaluations', label: 'Évaluations par session', type: 'number', numeric: true, required: true, defaultValue: 3 },
-    { key: 'moyenne_admission', label: 'Moyenne d’admission (/4)', type: 'number', numeric: true, required: true, defaultValue: 2, format: (value) => `${Number(value).toFixed(2)} /4` },
-    { key: 'taux_presence_min', label: 'Présence minimale (%)', type: 'number', numeric: true, required: true, defaultValue: 0, format: (value) => `${Number(value)} %` },
-    { key: 'passage_automatique', label: 'Passage automatique à la clôture de la session', type: 'checkbox', format: (value) => (value ? 'Automatique' : 'Manuel') },
+    { key: 'moyenne_admission', label: 'Moyenne de réussite — indicateur (/4)', type: 'number', numeric: true, required: true, defaultValue: 2, format: (value) => `${Number(value).toFixed(2)} /4` },
+    { key: 'taux_presence_min', label: 'Présence minimale — indicateur (%)', type: 'number', numeric: true, required: true, defaultValue: 0, format: (value) => `${Number(value)} %` },
   ],
   titleFor: (row) => row.libelle,
 };

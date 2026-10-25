@@ -1,6 +1,9 @@
-import { jourLabel } from './emploisHelpers';
+import { jourLabel, passageDays } from './emploisHelpers';
 
 const overlaps = (a, b) => String(a.heure_debut) < String(b.heure_fin) && String(b.heure_debut) < String(a.heure_fin);
+// Deux sessions successives peuvent réutiliser la même salle : seules les périodes qui se recoupent comptent.
+const datesOverlap = (a, b) => !a.session_date_debut || !b.session_date_debut
+  || (a.session_date_debut <= b.session_date_fin && b.session_date_debut <= a.session_date_fin);
 const label = (slot) => `${slot.groupe_code} · ${slot.salle_code} (${jourLabel(slot.jour_semaine)})`;
 
 /**
@@ -17,7 +20,7 @@ export function detectConflicts(data) {
     for (let j = i + 1; j < active.length; j += 1) {
       const a = active[i];
       const b = active[j];
-      if (Number(a.id_annee) !== Number(b.id_annee) || Number(a.jour_semaine) !== Number(b.jour_semaine) || !overlaps(a, b)) continue;
+      if (Number(a.jour_semaine) !== Number(b.jour_semaine) || !overlaps(a, b) || !datesOverlap(a, b)) continue;
       if (Number(a.id_salle) === Number(b.id_salle)) {
         conflicts.push({ type: 'Salle', slotIds: [a.id, b.id], message: `${a.salle_code} est réservée deux fois sur des horaires qui se chevauchent : ${label(a)} et ${label(b)}.` });
       }
@@ -36,8 +39,9 @@ export function detectConflicts(data) {
     if (capacity !== null && Number(slot.inscrits_actifs) > capacity) {
       conflicts.push({ type: 'Capacité', slotIds: [slot.id], message: `${label(slot)} : ${slot.inscrits_actifs} auditeurs pour ${capacity} places.` });
     }
-    if (slot.groupe_jour_semaine != null && Number(slot.groupe_jour_semaine) !== Number(slot.jour_semaine)) {
-      conflicts.push({ type: 'Jour', slotIds: [slot.id], message: `${label(slot)} : le groupe a cours le ${jourLabel(slot.groupe_jour_semaine).toLocaleLowerCase('fr')}.` });
+    const days = passageDays({ passages: slot.groupe_passages, jour_semaine: slot.groupe_jour_semaine });
+    if (days.length && !days.includes(Number(slot.jour_semaine))) {
+      conflicts.push({ type: 'Jour', slotIds: [slot.id], message: `${label(slot)} : ce jour n’est pas un passage du groupe (${days.map((day) => jourLabel(day).toLocaleLowerCase('fr')).join(', ')}).` });
     }
     if (slot.salle_statut && slot.salle_statut !== 'disponible') {
       conflicts.push({ type: 'Salle', slotIds: [slot.id], message: `${label(slot)} : la salle est indisponible.` });

@@ -113,12 +113,12 @@ try {
   const states = await evaluate("[...document.querySelectorAll('article li span')].map((s) => s.textContent).filter((t) => ['Disponible', 'Manquant', 'À compléter', 'Non vérifiable'].includes(t.trim())).join(',')");
   check(Boolean(states), 'états de prérequis calculés', states);
 
-  for (const panel of ['Parcours guidés', 'Dépendances', 'Erreurs fréquentes']) {
+  for (const panel of ['Parcours guidés']) {
     await clickByText('[role=tab]', panel);
     await sleep(700);
     await shot(`06-${panel.slice(0, 4)}`);
   }
-  check(await evaluate("document.body.innerText.includes('Messages que le serveur')"), 'la rubrique d’erreurs fréquentes s’affiche');
+  check(await evaluate("[...document.querySelectorAll('[role=tab]')].map((tab) => tab.textContent.trim()).join('|')") === 'Fonctionnalités|Parcours guidés', 'le centre d’aide n’a plus que les sous-onglets Fonctionnalités et Parcours guidés');
 
   console.log('\nFenêtres, superpositions et formulaires');
   await clickByText('aside nav button', 'Paramètres');

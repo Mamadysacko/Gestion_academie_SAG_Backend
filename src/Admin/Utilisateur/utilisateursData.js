@@ -13,7 +13,11 @@ export const MODULES_PERMISSIONS = [
   { id: 'presences', nom: 'Présences', description: 'Pointage des feuilles d’appel et suivi des assiduités' },
   { id: 'utilisateurs', nom: 'Utilisateurs & Sécurité', description: 'Comptes d’accès, rôles et permissions système' },
   { id: 'parametres', nom: 'Paramètres Généraux', description: 'Configuration globale de l’établissement et sauvegardes' },
+  { id: 'passages-niveau', nom: 'Passages de niveau', description: 'Approuver ou annuler le passage d’auditeurs au niveau supérieur ou leur redoublement (l’administrateur le peut toujours)', actions: ['validate'] },
 ];
+
+/** Actions proposées pour un module (toutes, sauf si le module restreint la liste). */
+export const actionsFor = (module) => ACTIONS_PERMISSIONS.filter((action) => !module.actions || module.actions.includes(action.id));
 
 export const ACTIONS_PERMISSIONS = [
   { id: 'read', label: 'Consulter (Lecture)', color: 'text-blue-600 bg-blue-50' },
@@ -43,6 +47,7 @@ export const INITIAL_ROLES = [
       'presences': ['read', 'create', 'update', 'delete', 'export', 'validate'],
       'utilisateurs': ['read', 'create', 'update', 'delete', 'export', 'validate'],
       'parametres': ['read', 'create', 'update', 'delete', 'export', 'validate'],
+      'passages-niveau': ['validate'],
     },
   },
   {

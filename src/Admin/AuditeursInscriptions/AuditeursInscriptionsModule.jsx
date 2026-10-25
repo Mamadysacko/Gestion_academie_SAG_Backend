@@ -9,7 +9,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import { anneesScolairesApi, auditeursApi, emploisApi, groupesApi, inscriptionsApi, sessionsApi, typesEmployesApi } from '../../config/apiService';
+import { anneesScolairesApi, auditeursApi, emploisApi, groupesApi, inscriptionsApi, positionsApi, sessionsApi, typesEmployesApi } from '../../config/apiService';
 import { useConfirm } from '../../composant/confirmContext';
 import { useLiveRefresh } from '../../composant/useLiveRefresh';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
@@ -31,7 +31,7 @@ const TABS = [
 
 const EMPTY_DATA = {
   annees: [], groupes: [], auditeurs: [],
-  inscriptions: [], historique_statuts: [], presences: [], typesEmployes: [],
+  inscriptions: [], historique_statuts: [], presences: [], typesEmployes: [], positions: [],
 };
 const STATUS_TO_LEGACY = { active: 'Active', terminee: 'Terminée', abandonnee: 'Abandonnée', annulee: 'Annulée' };
 const STATUS_TO_DATABASE = { Active: 'active', Terminée: 'terminee', Abandonnée: 'abandonnee', Annulée: 'annulee' };
@@ -58,7 +58,7 @@ export default function AuditeursInscriptionsModule({ onBack, currentUser, initi
   const loadData = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
-      const [auditeursResponse, yearsResponse, groupsResponse, sessionsResponse, schedulesResponse, enrollmentsResponse, typesResponse] = await Promise.all([
+      const [auditeursResponse, yearsResponse, groupsResponse, sessionsResponse, schedulesResponse, enrollmentsResponse, typesResponse, positionsResponse] = await Promise.all([
         auditeursApi.getAll(),
         anneesScolairesApi.getAll(),
         groupesApi.getAll(),
@@ -66,6 +66,7 @@ export default function AuditeursInscriptionsModule({ onBack, currentUser, initi
         emploisApi.getAll(),
         inscriptionsApi.getAll(),
         typesEmployesApi.getAll().catch(() => ({ data: [] })),
+        positionsApi.getAll().catch(() => ({ data: [] })),
       ]);
       const annees = list(yearsResponse).map((row) => ({ ...row, id: Number(row.id), statut: Number(row.statut) }));
       const sessions = list(sessionsResponse).map((row) => ({ ...row, id: Number(row.id), id_annee: Number(row.id_annee) }));
@@ -101,6 +102,7 @@ export default function AuditeursInscriptionsModule({ onBack, currentUser, initi
         auditeurs: list(auditeursResponse).map((row) => ({ ...row, id: Number(row.id) })),
         inscriptions,
         typesEmployes: list(typesResponse).map((row) => ({ ...row, id: Number(row.id) })),
+        positions: list(positionsResponse).map((row) => ({ ...row, id: Number(row.id) })),
       });
       setError('');
     } catch (loadError) {
@@ -147,7 +149,7 @@ export default function AuditeursInscriptionsModule({ onBack, currentUser, initi
         sexe: formValues.sexe || null,
         telephone: formValues.telephone.trim() || null,
         email: formValues.email.trim() || null,
-        position: (formValues.position || '').trim() || null,
+        id_position: formValues.id_position ? Number(formValues.id_position) : null,
         id_type_employe: formValues.id_type_employe ? Number(formValues.id_type_employe) : null,
       };
       let auditeurId = formValues.id ? Number(formValues.id) : null;
@@ -362,6 +364,7 @@ export default function AuditeursInscriptionsModule({ onBack, currentUser, initi
           auditeurs={data.auditeurs}
           activeYear={activeYear}
           typesEmployes={data.typesEmployes}
+          positions={data.positions}
         />
       )}
 

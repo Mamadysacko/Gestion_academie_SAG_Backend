@@ -681,6 +681,7 @@ export default function TableDeBord({ setActiveTab, currentUser, initialTab }) {
                           non_admis: { label: 'Non admis',   color: 'text-rose-700',    bg: 'bg-rose-50 border-rose-200' },
                           redouble:  { label: 'Redoublement',color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
                           abandonne: { label: 'Abandon',     color: 'text-slate-600',   bg: 'bg-slate-50 border-slate-200' },
+                          termine:   { label: 'Formation terminée', color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
                         };
                         const cfg = labels[item.decision] || { label: item.decision, color: 'text-slate-900', bg: 'bg-white border-slate-200' };
                         return (

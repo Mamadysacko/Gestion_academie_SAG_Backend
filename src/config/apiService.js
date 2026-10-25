@@ -52,17 +52,71 @@ function invalidateCache(endpoint) {
   }
 }
 
+// ── Jetons JWT ────────────────────────────────────────────────────────────────
+// Le jeton d'accès (courte durée) reste en mémoire : il n'est jamais écrit dans le stockage du
+// navigateur. Le jeton de renouvellement voyage dans un cookie HttpOnly posé par l'API ; il permet
+// de retrouver la session après un rechargement de la page et d'obtenir un nouveau jeton d'accès.
+export const AUTH_EXPIRED_EVENT = 'ages:auth-expired';
+let accessToken = null;
+let refreshTimer = null;
+let refreshing = null;
+
+export function setAccessToken(token, expiresIn) {
+  accessToken = token || null;
+  if (typeof window === 'undefined') return;
+  window.clearTimeout(refreshTimer);
+  if (accessToken && expiresIn) {
+    // Renouvellement silencieux une minute avant l'expiration.
+    refreshTimer = window.setTimeout(() => { refreshAccessToken().catch(() => {}); }, Math.max(15, expiresIn - 60) * 1000);
+  }
+}
+
+/** Échange le cookie de renouvellement contre un nouveau jeton d'accès (une seule requête à la fois). */
+export function refreshAccessToken() {
+  if (!refreshing) {
+    refreshing = fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.access_token) {
+          setAccessToken(null);
+          throw new ApiError(body.error || 'Session expirée : reconnectez-vous.', response.status || 401, body);
+        }
+        setAccessToken(body.access_token, body.expires_in);
+        return body;
+      })
+      .finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
 // ── Utilitaire fetch ──────────────────────────────────────────────────────────
-async function send(endpoint, mergedOptions) {
+async function send(endpoint, mergedOptions, retry = true) {
   let response;
+  const options = accessToken
+    ? { ...mergedOptions, headers: { ...mergedOptions.headers, Authorization: `Bearer ${accessToken}` } }
+    : mergedOptions;
   try {
-    response = await fetch(`${API_BASE_URL}/${endpoint}`, mergedOptions);
+    response = await fetch(`${API_BASE_URL}/${endpoint}`, options);
   } catch {
     throw new ApiError(
       `La requête vers l'API (${API_BASE_URL}) a échoué depuis le navigateur. Vérifiez l'URL, la connexion et la configuration CORS du backend.`,
       0,
       null
     );
+  }
+  // Jeton d'accès expiré ou révoqué : un renouvellement, puis une seule nouvelle tentative.
+  if (response.status === 401 && retry && accessToken && !endpoint.startsWith('auth/')) {
+    try {
+      await refreshAccessToken();
+      return send(endpoint, mergedOptions, false);
+    } catch {
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+    }
   }
   return { text: await response.text(), status: response.status, ok: response.ok, contentType: response.headers.get('content-type') || '' };
 }
@@ -136,11 +190,13 @@ async function request(endpoint, options = {}) {
 
   // Toute écriture réussie invalide les lectures mémorisées concernées, puis prévient les
   // écrans ouverts : ils se réactualisent en silence.
-  if (!endpoint.startsWith('auth/login') && !endpoint.startsWith('auth/logout')) {
+  if (!endpoint.startsWith('auth/login') && !endpoint.startsWith('auth/logout') && !endpoint.startsWith('auth/refresh')) {
     notifyDataChanged(endpoint);
   } else {
     readCache.clear();
   }
+  if (body?.access_token) setAccessToken(body.access_token, body.expires_in);
+  if (endpoint.startsWith('auth/logout')) setAccessToken(null);
 
   return body;
 }
@@ -212,8 +268,18 @@ export const authApi = {
   getTrainerResultats: (sessionId) => get(`auth/trainer-portal/resultats/${sessionId}`),
   /** POST /auth/trainer-portal/notes */
   saveTrainerGrade: (data) => post('auth/trainer-portal/notes', data),
-  /** POST /auth/logout */
-  logout: () => post('auth/logout', {}),
+  /** POST /auth/logout — révoque le jeton de renouvellement de ce navigateur */
+  logout: () => post('auth/logout', {}).finally(() => setAccessToken(null)),
+  /** POST /auth/logout-all — ferme toutes les sessions du compte (tous les appareils) */
+  logoutAll: () => post('auth/logout-all', {}).finally(() => setAccessToken(null)),
+  /** Restaure la session au chargement : jeton de renouvellement (cookie), sinon session PHP. */
+  restore: async () => {
+    try {
+      return await refreshAccessToken();
+    } catch {
+      return get('auth/me');
+    }
+  },
   /** POST /users/authenticate (alias legacy) */
   authenticate: (credentials) => post('users/authenticate', credentials),
 };
@@ -306,6 +372,8 @@ export const groupesApi = {
   getSalles: (id) => get(`groupes/${id}/salles`),
   getBySession: (sessionId) => get(`groupes/session/${sessionId}`),
   getByJour: (jour) => get(`groupes/jour/${jour}`),
+  /** PUT /planification/passages/{id} { jours: [1,3], heure_debut?, heure_fin? } */
+  setPassages: (id, data) => put(`planification/passages/${id}`, data),
   create: (data) => post('groupes', data),
   update: (id, data) => put(`groupes/${id}`, data),
   delete: (id) => del(`groupes/${id}`),
@@ -351,6 +419,15 @@ export const auditeursApi = {
 };
 
 /** Types d'employés (rattachés aux auditeurs) */
+/** Positions (postes) des auditeurs */
+export const positionsApi = {
+  getAll: () => get('positions'),
+  getById: (id) => get(`positions/${id}`),
+  create: (data) => post('positions', data),
+  update: (id, data) => put(`positions/${id}`, data),
+  delete: (id) => del(`positions/${id}`),
+};
+
 export const typesEmployesApi = {
   getAll: () => get('types-employes'),
   getById: (id) => get(`types-employes/${id}`),
@@ -393,6 +470,40 @@ export const emploisApi = {
   update: (id, data) => put(`emplois-du-temps/${id}`, data),
   delete: (id) => del(`emplois-du-temps/${id}`),
   checkDisponibilite: (data) => post('emplois-du-temps/check-disponibilite', data),
+};
+
+/** Formations : configuration de référence (passages / groupes / salles), salles dédiées, versions */
+export const formationsApi = {
+  getAll: () => get('formations'),
+  getById: (id) => get(`formations/${id}`),
+  updateConfiguration: (id, data) => put(`formations/${id}/configuration`, data),
+  getHistorique: (id) => get(`formations/${id}/historique`),
+  getSalles: (id) => get(`formations/${id}/salles`),
+  setSalles: (id, salles) => put(`formations/${id}/salles`, { salles }),
+};
+
+const query = (filters = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => { if (value !== '' && value != null) params.set(key, value); });
+  return params.size ? `?${params.toString()}` : '';
+};
+
+/** Planification automatique, conflits, alternatives et synthèse du calendrier */
+export const planificationApi = {
+  synthese: (filters) => get(`planification/synthese${query(filters)}`),
+  conflits: (filters) => get(`planification/conflits${query(filters)}`),
+  occupation: (filters) => get(`planification/occupation${query(filters)}`),
+  generations: (sessionId) => get(`planification/generations/${sessionId}`),
+  /** { mode: 'completer' | 'regenerer', creer_groupes } — aucune écriture */
+  simuler: (sessionId, options = {}) => post(`planification/simuler/${sessionId}`, options),
+  /** { mode, solution, accepter_partiel, creer_groupes } */
+  appliquer: (sessionId, options = {}) => post(`planification/appliquer/${sessionId}`, options),
+  reprendre: (sessionId, data = {}) => post(`planification/reprendre/${sessionId}`, data),
+  adopterConfiguration: (sessionId) => post(`planification/adopter-configuration/${sessionId}`, {}),
+  /** { id_groupe, id_salle, jour_semaine, exclude_id? } → conflits + alternatives */
+  verifier: (data) => post('planification/verifier', data),
+  /** { id_groupe? , id_emploi_du_temps?, jour_semaine? } */
+  alternatives: (data) => post('planification/alternatives', data),
 };
 
 /** Évaluations */
@@ -442,9 +553,18 @@ export const resultatsApi = {
     return get(`resultats/session/${sessionId}${params.size ? `?${params.toString()}` : ''}`);
   },
   getAuditeur: (auditeurId) => get(`resultats/auditeur/${auditeurId}`),
-  validerPassages: (sessionId) => post(`resultats/valider/${sessionId}`, {}),
+  /** Approuve des passages : { inscriptions: [ids], decision: 'admis' | 'redouble', observation? } */
+  deciderPassages: (sessionId, data) => post(`resultats/valider/${sessionId}`, data),
+  annulerPassages: (sessionId, data) => post(`resultats/annuler/${sessionId}`, data),
   getRegles: () => get('regles-evaluation'),
   updateRegles: (data) => put('regles-evaluation', data),
+};
+
+/** Barème d'appréciation : la clé d'une ligne est sa note (1 à 4). */
+export const baremesApi = {
+  create: (data) => post('baremes-appreciation', data),
+  update: (note, data) => put(`baremes-appreciation/${note}`, data),
+  delete: (note) => del(`baremes-appreciation/${note}`),
 };
 
 /** Passages de niveau */
@@ -452,10 +572,6 @@ export const passagesNiveauxApi = {
   getAll: () => get('passages-niveaux'),
   getById: (id) => get(`passages-niveaux/${id}`),
   getByInscription: (inscriptionId) => get(`passages-niveaux/inscription/${inscriptionId}`),
-  create: (data) => post('passages-niveaux', data),
-  decide: (data) => post('passages-niveaux/decide', data),
-  update: (id, data) => put(`passages-niveaux/${id}`, data),
-  delete: (id) => del(`passages-niveaux/${id}`),
 };
 
 /** Présences */
@@ -535,8 +651,11 @@ const api = {
   salles: sallesApi,
   auditeurs: auditeursApi,
   typesEmployes: typesEmployesApi,
+  positions: positionsApi,
   inscriptions: inscriptionsApi,
   emplois: emploisApi,
+  formations: formationsApi,
+  planification: planificationApi,
   evaluations: evaluationsApi,
   parametresEvaluation: parametresEvaluationApi,
   notes: notesApi,

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
-import { AlertCircle, CalendarDays, Save, X } from 'lucide-react';
-import { checkConflits, jourLabel, roomForTrainer, trainerForRoom } from './emploisHelpers';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, CalendarDays, CheckCircle2, Loader2, Save, X } from 'lucide-react';
+import { JOURS, jourLabel, passageDays, passagesLabel, roomForTrainer, trainerForRoom } from './emploisHelpers';
+import { planificationApi } from '../../config/apiService';
 import SearchableSelect from '../../composant/SearchableSelect';
 import TagSelect from '../../composant/TagSelect';
 
@@ -14,7 +15,7 @@ const initialForm = (yearId) => ({
 });
 
 export default function NouvelleAffectation({
-  years, groups, sessions, trainers, rooms, schedules, enrollments,
+  years, groups, sessions, trainers, rooms, enrollments,
   defaultYearId, assignment, saving, onCancel, onSubmit,
 }) {
   const [form, setForm] = useState(() => assignment ? {
@@ -47,8 +48,28 @@ export default function NouvelleAffectation({
     item.statut === 'active'
     && Number(item.id_emploi_du_temps) === Number(assignment?.id)
   )).length);
-  const localConflicts = checkConflits(form, schedules, assignment?.id);
   const optionLabel = (item) => [item.code, item.libelle].filter(Boolean).join(' · ');
+  const groupDays = passageDays(group);
+
+  // Vérification serveur en direct : passages du groupe, salles dédiées, conflits datés et horaires.
+  const [check, setCheck] = useState({ loading: false, result: null });
+  useEffect(() => {
+    if (!form.id_groupe || !form.id_salle || !form.jour_semaine) return undefined;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setCheck({ loading: true, result: null });
+      planificationApi.verifier({
+        id_groupe: Number(form.id_groupe), id_salle: Number(form.id_salle), jour_semaine: Number(form.jour_semaine),
+        ...(assignment?.id ? { exclude_id: assignment.id } : {}),
+      })
+        .then((response) => { if (active) setCheck({ loading: false, result: response.data }); })
+        .catch(() => { if (active) setCheck({ loading: false, result: null }); });
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [assignment?.id, form.id_groupe, form.id_salle, form.jour_semaine]);
+  const ready = Boolean(form.id_groupe && form.id_salle && form.jour_semaine);
+  const serverConflicts = (ready && check.result?.conflits) || [];
+  const alternatives = serverConflicts.length ? check.result?.alternatives : null;
 
   const update = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -66,12 +87,8 @@ export default function NouvelleAffectation({
       setFormError('Cette salle n’a pas encore de formateur attitré. Choisissez le formateur qui y restera toute la semaine.');
       return;
     }
-    if (Number(group?.jour_semaine) !== Number(form.jour_semaine)) {
-      setFormError('Le jour choisi doit correspondre au jour hebdomadaire configuré pour ce groupe.');
-      return;
-    }
-    if (localConflicts.length && Number(form.statut) === 1) {
-      setFormError(localConflicts.join(' '));
+    if (serverConflicts.length && Number(form.statut) === 1) {
+      setFormError(serverConflicts.map((item) => item.message).join(' '));
       return;
     }
     await onSubmit({
@@ -108,19 +125,19 @@ export default function NouvelleAffectation({
             value={form.id_groupe}
             onChange={(value) => {
               const selected = groups.find((item) => Number(item.id) === Number(value));
-              setForm((current) => ({ ...current, id_groupe: value, jour_semaine: selected ? String(selected.jour_semaine) : '' }));
+              setForm((current) => ({ ...current, id_groupe: value, jour_semaine: selected ? String(passageDays(selected)[0] || '') : '' }));
               setFormError('');
             }}
             options={eligibleGroups.map((item) => {
               const itemSession = sessions.find((entry) => Number(entry.id) === Number(item.id_session));
-              return { value: String(item.id), label: `${item.code} · ${item.libelle} — ${jourLabel(item.jour_semaine)}${itemSession ? ` · ${itemSession.libelle}` : ''}` };
+              return { value: String(item.id), label: `${item.code} · ${item.libelle} — ${passagesLabel(item)}${itemSession ? ` · ${itemSession.libelle}` : ''}` };
             })}
             placeholder="Rechercher un groupe"
             emptyMessage="Aucun groupe disponible pour cette année."
             disabled={!form.id_annee}
           />
 
-          <TagSelect label="Jour hebdomadaire" required disabled={!group || saving} value={String(form.jour_semaine || '')} onChange={(value) => update('jour_semaine', value)} options={group ? [{ value: String(group.jour_semaine), label: jourLabel(group.jour_semaine), hint: 'Jour configuré pour le groupe' }] : []} placeholder="Sélectionnez d’abord un groupe" />
+          <TagSelect label="Jour hebdomadaire" required disabled={!group || saving} value={String(form.jour_semaine || '')} onChange={(value) => update('jour_semaine', value)} options={group ? JOURS.map((day) => ({ value: String(day.id), label: day.label, hint: groupDays.includes(day.id) ? 'Jour de passage du groupe' : 'Nouveau passage, si la formation le permet' })) : []} placeholder="Sélectionnez d’abord un groupe" />
 
           <SearchableSelect
             label="Salle *"
@@ -169,10 +186,38 @@ export default function NouvelleAffectation({
           <TagSelect label="Statut du créneau" required value={form.statut} onChange={(value) => update('statut', value)} options={[{ value: '1', label: 'Actif' }, { value: '0', label: 'Inactif' }]} />
         </div>
 
+        {ready && (
+          <section aria-live="polite" className={`border p-4 text-sm ${check.loading ? 'border-slate-200 bg-slate-50 text-slate-600' : serverConflicts.length ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+            {check.loading && <p className="flex items-center gap-2"><Loader2 size={16} className="animate-spin" />Vérification des disponibilités…</p>}
+            {!check.loading && check.result && !serverConflicts.length && (
+              <p className="flex items-center gap-2"><CheckCircle2 size={16} />Créneau libre : {jourLabel(form.jour_semaine)} {check.result.heure_debut}–{check.result.heure_fin}{check.result.nouveau_passage ? ' (nouveau passage hebdomadaire du groupe)' : ''}.</p>
+            )}
+            {!check.loading && serverConflicts.length > 0 && (
+              <div className="space-y-2">
+                <ul className="space-y-1">{serverConflicts.map((item, index) => <li key={index} className="flex gap-2"><AlertCircle size={16} className="mt-0.5 shrink-0" />{item.message}</li>)}</ul>
+                {(alternatives?.autres_salles?.length > 0 || alternatives?.autres_jours?.length > 0) && (
+                  <div>
+                    <p className="text-xs font-bold uppercase text-rose-800">Créneaux alternatifs libres</p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {alternatives.autres_salles?.slice(0, 6).map((item) => (
+                        <button key={`s${item.id_salle}`} type="button" onClick={() => setForm((current) => ({ ...current, id_salle: String(item.id_salle), id_formateur: String(item.id_formateur) }))} className="border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800 hover:bg-rose-100">Salle {item.salle_code} · {item.formateur}</button>
+                      ))}
+                      {alternatives.autres_jours?.map((item) => (
+                        <button key={`j${item.jour_semaine}`} type="button" onClick={() => update('jour_semaine', String(item.jour_semaine))} className="border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-slate-800 hover:bg-rose-100">{jourLabel(item.jour_semaine)} {item.heure_debut}–{item.heure_fin}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {alternatives?.message && <p className="text-xs">{alternatives.message}</p>}
+              </div>
+            )}
+          </section>
+        )}
+
         {group && session && (
           <aside className="flex items-start gap-3 border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
             <CalendarDays size={18} className="mt-0.5 shrink-0 text-teal-800" />
-            <div><strong>{session.code} · {session.libelle}</strong><p className="mt-1 text-xs text-slate-600">Année {years.find((item) => Number(item.id) === Number(session.id_annee))?.libelle || '—'} · {jourLabel(group.jour_semaine)} · {group.capacite ? `Capacité du groupe : ${group.capacite}` : 'Capacité du groupe non limitée'}</p></div>
+            <div><strong>{session.code} · {session.libelle}</strong><p className="mt-1 text-xs text-slate-600">Année {years.find((item) => Number(item.id) === Number(session.id_annee))?.libelle || '—'} · passages : {passagesLabel(group) || '—'}{session.passages_semaine ? ` (${session.passages_semaine} prévu(s) par semaine)` : ''} · {group.capacite ? `Capacité du groupe : ${group.capacite}` : 'Capacité du groupe non limitée'}</p></div>
           </aside>
         )}
 

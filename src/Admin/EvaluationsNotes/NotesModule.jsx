@@ -125,6 +125,9 @@ export default function NotesModule({ onBack, currentUser, initialTab }) {
     && (currentUser?.permissions?.['organisation-pedagogique'] || []).includes('read')
     && (currentUser?.permissions?.['emplois-temps'] || []).includes('read')
   );
+  // Approbation des passages : administrateur, ou rôle disposant du droit « Passages de niveau ».
+  const canApprovePassages = isAdmin || (currentUser?.permissions?.['passages-niveau'] || []).includes('validate');
+  const canOpenModule = (module) => isAdmin || (currentUser?.permissions?.[module] || []).includes('read');
   const canWriteGrades = can('update') && canReadRosterData;
 
   const reload = useCallback(async ({ silent = false } = {}) => {
@@ -230,7 +233,7 @@ export default function NotesModule({ onBack, currentUser, initialTab }) {
           {onBack && <button type="button" onClick={onBack} className="mb-3 text-xs font-semibold text-emerald-800 hover:text-emerald-950">← Tableau de bord</button>}
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">Pilotage académique</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">Évaluations, notes et passages</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-600">{data.regles?.nb_evaluations || 3} évaluations par session, moyennes et appréciations (1 à 4) calculées automatiquement, passage de niveau selon les règles de l’administration.</p>
+          <p className="mt-1 max-w-3xl text-sm text-slate-600">{data.regles?.nb_evaluations || 3} évaluations par session, moyennes et appréciations (1 à 4) calculées automatiquement, passage de niveau approuvé par l’administrateur ou un utilisateur habilité.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs font-semibold text-slate-600">Année scolaire<select value={yearId} onChange={(event) => setYearId(event.target.value)} className="mt-1 block border border-slate-300 bg-white px-3 py-2 text-sm">{data.annees_scolaires.map((year) => <option key={year.id} value={year.id}>{year.libelle}</option>)}</select></label>
@@ -251,7 +254,7 @@ export default function NotesModule({ onBack, currentUser, initialTab }) {
           {section === 'saisie' && canReadRosterData && <SaisieNotes data={data} sessions={sessionsForYear} regles={data.regles} bareme={data.bareme} canWrite={canWriteGrades} canGenerate={can('create')} onSave={saveGrades} onGenerate={generateEvaluations} saving={saving} />}
           {section === 'liste' && canReadRosterData && <ListeNotes rows={allNoteRows} sessions={sessionsForYear} groups={data.groupes} rooms={data.salles} evaluations={data.evaluations} onSave={handleSaveGrade} onDelete={(grade) => withMutation(() => notesApi.delete(grade.id_note), 'Note supprimée.')} canUpdate={can('update')} canDelete={can('delete')} saving={saving} />}
           {section === 'rapport' && <RapportSituation sessions={sessionsForYear} data={data} />}
-          {section === 'passages' && <PassagesNiveau sessions={sessionsForYear} canValidate={can('validate')} />}
+          {section === 'passages' && <PassagesNiveau sessions={sessionsForYear} allSessions={data.sessions} canApprove={canApprovePassages} canOpen={canOpenModule} />}
           {section === 'releves' && canReadRosterData && <RelevesNotes sessions={sessionsForYear} data={data} />}
           {section === 'types' && <div className="space-y-6">
             <ReglesEvaluationPanel regles={data.regles} bareme={data.bareme} sessions={sessionsForYear} evaluations={data.evaluations} criteria={data.parametres_evaluations} canUpdate={can('update')} canCreate={can('create')} canDelete={can('delete')} onChanged={() => reload({ silent: true })} />

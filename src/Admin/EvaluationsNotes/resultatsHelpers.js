@@ -11,6 +11,7 @@ export const DECISION_LABELS = {
   non_admis: 'Non admis',
   redouble: 'Redouble',
   abandonne: 'Abandon',
+  termine: 'Formation terminée',
 };
 
 export const formatAverage = (value) => (value === null || value === undefined ? '—' : `${Number(value).toFixed(2)} /4`);

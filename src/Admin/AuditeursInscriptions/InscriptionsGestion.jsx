@@ -8,6 +8,7 @@ import {
   groupesApi,
   inscriptionsApi,
   sessionsApi,
+  positionsApi,
   typesEmployesApi,
 } from '../../config/apiService';
 import { getCurrentSchoolYear } from '../../utils/schoolYear';
@@ -53,7 +54,7 @@ const EMPTY_AUDITEUR = () => ({
   sexe: 'M',
   telephone: '',
   email: '',
-  position: '',
+  id_position: '',
   id_type_employe: '',
 });
 const createMatricule = (yearLabel, auditeurs) => {
@@ -76,7 +77,7 @@ const can = (user, action) => isAdmin(user)
 export default function InscriptionsGestion({ currentUser, initialAuditeurId, openOnMount, onInitialAuditeurConsumed, onCreateAuditeur }) {
   const prerequisites = usePrerequisites('auditeurs/inscriptions', currentUser);
   const confirm = useConfirm();
-  const [data, setData] = useState({ auditeurs: [], inscriptions: [], emplois: [], groupes: [], sessions: [], annees: [], departements: [], typesEmployes: [] });
+  const [data, setData] = useState({ auditeurs: [], inscriptions: [], emplois: [], groupes: [], sessions: [], annees: [], departements: [], typesEmployes: [], positions: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -100,7 +101,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!silent) { setLoading(true); setError(''); }
     try {
-      const [auditeurs, inscriptions, emplois, groupes, sessions, annees, departements, typesEmployes] = await Promise.all([
+      const [auditeurs, inscriptions, emplois, groupes, sessions, annees, departements, typesEmployes, positions] = await Promise.all([
         auditeursApi.getAll(),
         inscriptionsApi.getAll(),
         emploisApi.getAll(),
@@ -109,6 +110,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
         anneesScolairesApi.getAll(),
         departementsApi.getAll(),
         typesEmployesApi.getAll().catch(() => ({ data: [] })),
+        positionsApi.getAll().catch(() => ({ data: [] })),
       ]);
       setData({
         auditeurs: rows(auditeurs).map((item) => ({ ...item, id: asId(item.id) })),
@@ -139,6 +141,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
         annees: rows(annees).map((item) => ({ ...item, id: asId(item.id), statut: asId(item.statut) })),
         departements: rows(departements).map((item) => ({ ...item, id: asId(item.id) })),
         typesEmployes: rows(typesEmployes).map((item) => ({ ...item, id: asId(item.id) })),
+        positions: rows(positions).map((item) => ({ ...item, id: asId(item.id) })),
       });
     } catch (loadError) {
       if (!silent) setError(loadError.message || 'Impossible de charger le registre depuis le serveur.');
@@ -468,7 +471,7 @@ export default function InscriptionsGestion({ currentUser, initialAuditeurId, op
                     <label className="text-sm font-semibold text-slate-700">Prénom *<input required value={newAuditeur.prenom} onChange={(event) => setNewAuditeur((current) => ({ ...current, prenom: event.target.value }))} autoComplete="given-name" className={inputClass} /></label>
                     <label className="text-sm font-semibold text-slate-700">Matricule *<input required value={newAuditeur.matricule || suggestedMatricule} onChange={(event) => setNewAuditeur((current) => ({ ...current, matricule: event.target.value }))} className={inputClass} /><span className="mt-1 block text-xs font-normal text-slate-500">Généré automatiquement, modifiable si nécessaire.</span></label>
                     <TagSelect label="Sexe" required value={newAuditeur.sexe} onChange={(next) => setNewAuditeur((current) => ({ ...current, sexe: next }))} options={[{ value: 'M', label: 'Masculin' }, { value: 'F', label: 'Féminin' }]} />
-                    <label className="text-sm font-semibold text-slate-700">Position<input maxLength="100" value={newAuditeur.position} onChange={(event) => setNewAuditeur((current) => ({ ...current, position: event.target.value }))} placeholder="Ex. Chef de service" className={inputClass} /></label>
+                    <TagSelect label="Position" value={String(newAuditeur.id_position || '')} onChange={(next) => setNewAuditeur((current) => ({ ...current, id_position: next }))} options={data.positions.map((item) => ({ value: String(item.id), label: item.libelle }))} placeholder="Non renseignée" />
                     <TagSelect label="Type d’employé" value={String(newAuditeur.id_type_employe || '')} onChange={(next) => setNewAuditeur((current) => ({ ...current, id_type_employe: next }))} options={data.typesEmployes.map((type) => ({ value: String(type.id), label: type.libelle }))} placeholder="Non renseigné" />
                     <label className="text-sm font-semibold text-slate-700">Téléphone<input type="tel" value={newAuditeur.telephone} onChange={(event) => setNewAuditeur((current) => ({ ...current, telephone: event.target.value }))} autoComplete="tel" className={inputClass} /></label>
                     <label className="text-sm font-semibold text-slate-700">E-mail<input type="email" value={newAuditeur.email} onChange={(event) => setNewAuditeur((current) => ({ ...current, email: event.target.value }))} autoComplete="email" className={inputClass} /></label>

@@ -8,14 +8,17 @@ import { usePrerequisites } from './usePrerequisites';
  */
 export default function ReturnBar({ returnTo, currentUser, onReturn, onDismiss }) {
   const prerequisites = usePrerequisites(returnTo.featureId, currentUser);
-  const ready = !prerequisites.loading && !prerequisites.blocked;
+  // Un retour sans prérequis (ex. suite d'un passage de niveau) affiche son propre message.
+  const ready = Boolean(returnTo.note) || (!prerequisites.loading && !prerequisites.blocked);
   const remaining = prerequisites.items.filter((item) => item.state === 'missing' || item.state === 'partial').length;
 
   return (
     <div role="status" className={`flex flex-col gap-2 border-b px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:px-8 print:hidden ${ready ? 'border-emerald-300 bg-emerald-50' : 'border-amber-300 bg-amber-50'}`}>
       <p className={`flex items-center gap-2 text-sm font-semibold ${ready ? 'text-emerald-900' : 'text-amber-950'}`}>
         {ready && <CheckCircle2 className="h-4 w-4 shrink-0" />}
-        {ready
+        {returnTo.note
+          ? returnTo.note
+          : ready
           ? <>Prérequis réunis : vous pouvez revenir à « {returnTo.label} ».</>
           : <>Vous complétez un prérequis pour « {returnTo.label} »{remaining ? ` — il en reste ${remaining}` : ''}.</>}
       </p>

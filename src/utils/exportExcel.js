@@ -1,5 +1,6 @@
 import logoSag from '../assets/logo-sag.png';
 import logoAges from '../assets/logo-ages.png';
+import { chartPng } from './reportCharts';
 
 export const FOOTER_LEFT = 'Vérifié par : AGES COORDINATEUR';
 export const FOOTER_RIGHT = 'SAG EDUCATION PROJECT';
@@ -57,7 +58,7 @@ export async function exportWorkbook({ filename, sheets }) {
   const agesId = workbook.addImage({ buffer: agesBuffer, extension: 'png' });
   const used = new Set();
 
-  sheets.forEach((sheet) => {
+  for (const sheet of sheets) {
     const ws = workbook.addWorksheet(safeSheetName(sheet.name || sheet.title, used), {
       pageSetup: {
         paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0,
@@ -184,6 +185,46 @@ export async function exportWorkbook({ filename, sheets }) {
       row += 1;
     });
 
+    // Dernière page : visualisation des données (graphiques insérés en images, après un saut de page).
+    if (sheet.charts?.length) {
+      ws.getRow(row).addPageBreak();
+      row += 1;
+      fullRow('Visualisation des données', { bold: true, size: 11, color: { argb: 'FFFFFFFF' } }, GOLD, 22);
+      row += 1;
+      const colPx = widths.map((width) => Math.round(width * 7 + 5));
+      const totalPx = colPx.reduce((sum, px) => sum + px, 0);
+      const fractionalCol = (px) => {
+        let remaining = px;
+        for (let i = 0; i < colPx.length; i += 1) {
+          if (remaining < colPx[i]) return i + remaining / colPx[i];
+          remaining -= colPx[i];
+        }
+        return colPx.length;
+      };
+      const usable = Math.min(totalPx - 10, 1180);
+      const bands = [];
+      sheet.charts.forEach((chart) => {
+        const last = bands[bands.length - 1];
+        if (chart.kind !== 'stacked' && last && last.length === 1 && last[0].kind !== 'stacked') last.push(chart);
+        else bands.push([chart]);
+      });
+      for (const band of bands) {
+        const gap = 12;
+        const height = band[0].kind === 'stacked' ? 260 : 280;
+        let offset = 5;
+        for (const chart of band) {
+          const width = Math.floor((usable - gap * (band.length - 1)) / band.length);
+          const buffer = await chartPng(chart, { width, height });
+          const id = workbook.addImage({ buffer, extension: 'png' });
+          ws.addImage(id, { tl: { col: fractionalCol(offset), row: row - 1 }, ext: { width, height } });
+          offset += width + gap;
+        }
+        const rowCount = Math.ceil(height / 20) + 1;
+        for (let i = 0; i < rowCount; i += 1) { ws.getRow(row + i).height = 15; }
+        row += Math.ceil((height * 0.75) / 15) + 1;
+      }
+    }
+
     // Pied de page : à gauche « Vérifié par », à droite « SAG EDUCATION PROJECT ».
     row += 1;
     const half = Math.max(1, Math.floor(lastCol / 2));
@@ -200,7 +241,7 @@ export async function exportWorkbook({ filename, sheets }) {
     for (let c = 1; c <= lastCol; c += 1) ws.getCell(row, c).border = { top: { style: 'medium', color: { argb: GOLD } } };
     ws.getRow(row).height = 22;
     ws.pageSetup.printArea = `A1:${ws.getColumn(lastCol).letter}${row}`;
-  });
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));

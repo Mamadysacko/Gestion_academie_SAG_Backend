@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Layers, Shield, Check, Save, Lock } from 'lucide-react';
-import { MODULES_PERMISSIONS, ACTIONS_PERMISSIONS } from './utilisateursData';
+import { MODULES_PERMISSIONS, ACTIONS_PERMISSIONS, actionsFor } from './utilisateursData';
 
 export default function MatricePermissions({ roles, onUpdateRolePermissions, canUpdate = false }) {
   const [selectedRole, setSelectedRole] = useState(roles[0]?.id ?? null);
@@ -44,7 +44,7 @@ export default function MatricePermissions({ roles, onUpdateRolePermissions, can
   const handleToggleModuleRow = (moduleId) => {
     if (activeRole?.isSystem && activeRole?.code === 'admin') return;
     const currentModuleActions = rolePerms[moduleId] || [];
-    const allActionIds = ACTIONS_PERMISSIONS.map((a) => a.id);
+    const allActionIds = actionsFor(MODULES_PERMISSIONS.find((m) => m.id === moduleId)).map((a) => a.id);
     const hasAll = allActionIds.every((a) => currentModuleActions.includes(a));
 
     setMatrixState((prev) => ({
@@ -164,7 +164,7 @@ export default function MatricePermissions({ roles, onUpdateRolePermissions, can
             <tbody className="divide-y divide-slate-100">
               {MODULES_PERMISSIONS.map((mod) => {
                 const currentActions = rolePerms[mod.id] || [];
-                const allSelected = ACTIONS_PERMISSIONS.every((a) => currentActions.includes(a.id));
+                const allSelected = actionsFor(mod).every((a) => currentActions.includes(a.id));
 
                 return (
                   <tr key={mod.id} className="hover:bg-slate-50/70 transition">
@@ -175,6 +175,7 @@ export default function MatricePermissions({ roles, onUpdateRolePermissions, can
 
                     {ACTIONS_PERMISSIONS.map((act) => {
                       const isGranted = currentActions.includes(act.id);
+                      if (mod.actions && !mod.actions.includes(act.id)) return <td key={act.id} className="py-3.5 px-3 text-center text-slate-300" aria-hidden="true">—</td>;
                       return (
                         <td key={act.id} className="py-3.5 px-3 text-center">
                           <label className="inline-flex items-center justify-center p-1.5 rounded-xl cursor-pointer hover:bg-slate-100 transition">
@@ -184,6 +185,7 @@ export default function MatricePermissions({ roles, onUpdateRolePermissions, can
                               disabled={!canUpdate || (activeRole?.isSystem && activeRole?.code === 'admin')}
                               onChange={() => handleToggle(mod.id, act.id)}
                               className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
+                              aria-label={`${mod.nom} : ${act.label}`}
                             />
                           </label>
                         </td>

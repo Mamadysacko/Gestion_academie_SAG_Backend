@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, BookOpen, ChevronRight, Compass, GitBranch, Lock, Route, Search, Sparkles, X } from 'lucide-react';
+import { BookOpen, ChevronRight, Compass, Lock, Route, Search, Sparkles, X } from 'lucide-react';
 import manifest from 'virtual:ages-features';
 import { AIDE_QUERY_KEY, useCatalog } from './useCatalog';
 import FeatureSheet from './FeatureSheet';
 import ModalOverlay from '../composant/ModalOverlay';
 import JourneyView from './JourneyView';
-import DependencyMap from './DependencyMap';
 
 const PANELS = [
   { id: 'guide', label: 'Fonctionnalités', icon: BookOpen },
@@ -77,20 +76,10 @@ export default function AidePage({ currentUser, onNavigate }) {
   const [panel, setPanel] = useState('guide');
   const [openModule, setOpenModule] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [errorModule, setErrorModule] = useState('');
-  const [errorFilter, setErrorFilter] = useState('');
 
   const found = useMemo(() => (query.trim() ? catalog.search(query, { limit: 14 }) : null), [catalog, query]);
   const selected = catalog.features.find((feature) => feature.id === selectedId) || null;
   const selectedHits = found?.results.find((item) => item.feature.id === selectedId)?.errorHits || [];
-
-  const errorList = useMemo(() => {
-    const term = errorFilter.trim().toLowerCase();
-    return catalog.modules
-      .filter((module) => !errorModule || module.id === errorModule)
-      .flatMap((module) => module.errors.map((error) => ({ ...error, moduleLabel: module.title })))
-      .filter((error) => !term || error.message.toLowerCase().includes(term));
-  }, [catalog, errorModule, errorFilter]);
 
   useEffect(() => {
     if (!selected) return undefined;

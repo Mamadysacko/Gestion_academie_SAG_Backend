@@ -7,7 +7,7 @@ import ApiActivityBar from './composant/ApiActivityBar';
 import ReturnBar from './aide/ReturnBar';
 import { NavContext } from './composant/navContext';
 import { AnimatePresence, motion } from 'framer-motion';
-import { authApi } from './config/apiService';
+import { AUTH_EXPIRED_EVENT, authApi } from './config/apiService';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -32,7 +32,8 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    authApi.me()
+    // Jeton de renouvellement (cookie HttpOnly) d'abord, ancienne session PHP sinon.
+    authApi.restore()
       .then((response) => {
         if (active && response?.success && response.data) {
           const user = { ...response.data, role: response.data.role_code };
@@ -49,6 +50,12 @@ function App() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const expire = () => setCurrentUser(null);
+    window.addEventListener(AUTH_EXPIRED_EVENT, expire);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, expire);
   }, []);
 
   useEffect(() => {

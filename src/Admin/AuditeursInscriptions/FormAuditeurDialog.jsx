@@ -20,6 +20,7 @@ export default function FormAuditeurDialog({
   auditeurs = [],
   activeYear = null,
   typesEmployes = [],
+  positions = [],
 }) {
   const isEditing = Boolean(auditeur?.id);
 
@@ -32,7 +33,7 @@ export default function FormAuditeurDialog({
         sexe: auditeur.sexe || 'M',
         telephone: auditeur.telephone || '',
         email: auditeur.email || '',
-        position: auditeur.position || '',
+        id_position: auditeur.id_position ? String(auditeur.id_position) : '',
         id_type_employe: auditeur.id_type_employe ? String(auditeur.id_type_employe) : '',
       };
     }
@@ -43,7 +44,7 @@ export default function FormAuditeurDialog({
       sexe: 'M',
       telephone: '',
       email: '',
-      position: '',
+      id_position: '',
       id_type_employe: '',
     };
   });
@@ -244,14 +245,15 @@ export default function FormAuditeurDialog({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Position
                 </label>
-                <input
-                  type="text"
-                  maxLength="100"
-                  placeholder="ex: Chef de service, Agent…"
-                  value={form.position}
-                  onChange={(e) => setForm({ ...form, position: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
-                />
+                <select
+                  value={form.id_position}
+                  onChange={(e) => setForm({ ...form, id_position: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                >
+                  <option value="">Non renseignée</option>
+                  {positions.map((item) => <option key={item.id} value={item.id}>{item.libelle}</option>)}
+                </select>
+                {!positions.length && <p className="mt-1 text-[11px] text-amber-700">Créez les positions dans Paramètres › Positions.</p>}
               </div>
 
               <div>

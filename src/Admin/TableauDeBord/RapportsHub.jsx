@@ -9,6 +9,7 @@ import { useLiveRefresh } from '../../composant/useLiveRefresh';
 import { useToast } from '../../composant/toastContext';
 import { printElements } from '../../utils/print';
 import { exportWorkbook } from '../../utils/exportExcel';
+import { buildReportCharts } from '../../utils/reportCharts';
 import RapportDocument from './RapportDocument';
 
 const CATEGORIES = [
@@ -143,7 +144,7 @@ export default function RapportsHub({ annees = [], sessions = [], selectedAnnee 
         sheets: [{
           name: report.titre, title: report.titre,
           subtitle: `${report.categorie_libelle}${report.periode ? ` · ${report.periode.libelle}` : ''}`,
-          filters: report.filtres, summary: report.resume, sections: report.sections,
+          filters: report.filtres, summary: report.resume, sections: report.sections, charts: buildReportCharts(report),
         }],
       });
       toast.success('Le fichier Excel a été généré (A4 paysage, avec logos et pied de page).');

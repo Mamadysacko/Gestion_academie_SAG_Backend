@@ -12,12 +12,14 @@ const normalize = (value) => String(value ?? '')
  * Idéal quand il y a beaucoup de choix : tout reste visible, rien n'est caché dans un menu.
  *
  * options : [{ value, label, hint?, badge? }]   ·   value : chaîne ('' = aucun choix)
+ * multiple : value est un tableau de chaînes ; un clic coche / décoche, « Tout cocher » prend la liste filtrée.
  */
 export function ListPicker({
   label,
   value,
   onChange,
   options = [],
+  multiple = false,
   required = false,
   disabled = false,
   placeholder = 'Rechercher…',
@@ -38,10 +40,15 @@ export function ListPicker({
     return options.filter((option) => normalize(`${option.label} ${option.hint ?? ''} ${option.badge ?? ''}`).includes(term));
   }, [options, query]);
 
-  const selected = options.find((option) => String(option.value) === String(value));
+  const values = multiple ? (Array.isArray(value) ? value.map(String) : []) : [String(value ?? '')];
+  const selected = multiple ? values.length > 0 : options.find((option) => String(option.value) === String(value));
   const choose = (option) => {
-    onChange(String(value) === String(option.value) && !required ? '' : String(option.value));
+    const key = String(option.value);
+    if (multiple) onChange(values.includes(key) ? values.filter((item) => item !== key) : [...values, key]);
+    else onChange(String(value) === key && !required ? '' : key);
   };
+  const checkAll = () => onChange([...new Set([...values, ...filtered.map((option) => String(option.value))])]);
+  const uncheckAll = () => onChange(values.filter((key) => !filtered.some((option) => String(option.value) === key)));
 
   const onKeyDown = (event) => {
     if (event.key === 'ArrowDown') { event.preventDefault(); setActive((index) => Math.min(index + 1, filtered.length - 1)); }
@@ -60,7 +67,7 @@ export function ListPicker({
           {label}{required && <span className="text-red-600"> *</span>}
         </span>
         <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold tabular-nums text-slate-500 ring-1 ring-slate-200">
-          {filtered.length}/{options.length}
+          {multiple ? `${values.length} choisi(s) · ` : ''}{filtered.length}/{options.length}
         </span>
       </div>
 
@@ -84,11 +91,18 @@ export function ListPicker({
         )}
       </div>
 
-      <ul role="listbox" aria-labelledby={`${id}-label`} className={`${height} min-h-40 flex-1 divide-y divide-slate-100 overflow-y-auto`}>
+      {multiple && !disabled && filtered.length > 0 && (
+        <div className="flex gap-3 border-b border-slate-100 px-3 py-1.5 text-[11px] font-semibold">
+          <button type="button" onClick={checkAll} className="text-brand-bordeaux hover:underline">Tout cocher{query ? ' (filtrés)' : ''}</button>
+          <button type="button" onClick={uncheckAll} className="text-slate-500 hover:underline">Tout décocher</button>
+        </div>
+      )}
+
+      <ul role="listbox" aria-multiselectable={multiple || undefined} aria-labelledby={`${id}-label`} className={`${height} min-h-40 flex-1 divide-y divide-slate-100 overflow-y-auto`}>
         {disabled && disabledMessage ? (
           <li className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">{disabledMessage}</li>
         ) : filtered.map((option, index) => {
-          const isSelected = String(option.value) === String(value);
+          const isSelected = values.includes(String(option.value));
           return (
             <li key={option.value} role="option" aria-selected={isSelected}>
               <button
@@ -98,7 +112,7 @@ export function ListPicker({
                 onMouseEnter={() => setActive(index)}
                 className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition ${isSelected ? 'bg-brand-gold-light/35' : index === active && query ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
               >
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${isSelected ? 'border-brand-gold bg-brand-gold text-white' : 'border-slate-300'}`}>
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center ${multiple ? 'rounded-md' : 'rounded-full'} border-2 transition ${isSelected ? 'border-brand-gold bg-brand-gold text-white' : 'border-slate-300'}`}>
                   {isSelected && <Check className="h-3 w-3" />}
                 </span>
                 <span className="min-w-0 flex-1">

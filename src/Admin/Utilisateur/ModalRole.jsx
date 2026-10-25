@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Shield, Check } from 'lucide-react';
-import { MODULES_PERMISSIONS, ACTIONS_PERMISSIONS } from './utilisateursData';
+import { MODULES_PERMISSIONS, ACTIONS_PERMISSIONS, actionsFor } from './utilisateursData';
 import ModalOverlay from '../../composant/ModalOverlay';
 
 export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
@@ -15,7 +15,7 @@ export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
     return {
       code: '',
       nom: '',
-      permissions: Object.fromEntries(MODULES_PERMISSIONS.map((module) => [module.id, ['read']])),
+      permissions: Object.fromEntries(MODULES_PERMISSIONS.map((module) => [module.id, module.actions ? [] : ['read']])),
     };
   });
   const [errors, setErrors] = useState({});
@@ -38,7 +38,7 @@ export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
   const toggleAllModule = (moduleId) => {
     setFormData((prev) => {
       const current = prev.permissions[moduleId] || [];
-      const allActions = ACTIONS_PERMISSIONS.map((a) => a.id);
+      const allActions = actionsFor(MODULES_PERMISSIONS.find((m) => m.id === moduleId)).map((a) => a.id);
       const isAll = allActions.every((a) => current.includes(a));
       return {
         ...prev,
@@ -151,7 +151,7 @@ export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
                 <tbody className="divide-y divide-slate-100">
                   {MODULES_PERMISSIONS.map((mod) => {
                     const modPerms = formData.permissions[mod.id] || [];
-                    const isAll = ACTIONS_PERMISSIONS.every((a) => modPerms.includes(a.id));
+                    const isAll = actionsFor(mod).every((a) => modPerms.includes(a.id));
                     return (
                       <tr key={mod.id} className="hover:bg-slate-50/70">
                         <td className="py-2.5 px-3">
@@ -160,6 +160,7 @@ export default function ModalRole({ isOpen, onClose, onSave, editingRole }) {
                         </td>
                         {ACTIONS_PERMISSIONS.map((act) => {
                           const checked = modPerms.includes(act.id);
+                          if (mod.actions && !mod.actions.includes(act.id)) return <td key={act.id} className="py-2.5 px-2 text-center text-slate-300" aria-hidden="true">—</td>;
                           return (
                             <td key={act.id} className="py-2.5 px-2 text-center">
                               <input

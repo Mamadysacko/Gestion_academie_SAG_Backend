@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, Clock, Download, GraduationCap, MapPin, RefreshCw, Search, X } from 'lucide-react';
+import { CalendarDays, Check, Clock, Download, GraduationCap, MapPin, RefreshCw, Search } from 'lucide-react';
 import { presencesApi } from '../../config/apiService';
 import { useLiveRefresh } from '../../composant/useLiveRefresh';
 import { useConfirm } from '../../composant/confirmContext';
@@ -7,7 +7,6 @@ import { dateToInput, formatDate, STATUS_LABELS, STATUS_OPTIONS } from './presen
 import { PresenceFilter, PresenceMetric } from './PresenceComponents';
 import { useToastNotice } from '../../composant/toastContext';
 import { exportTable } from '../../utils/exportExcel';
-import ModalOverlay from '../../composant/ModalOverlay';
 import LeaveDialog from './LeaveDialog';
 import { PERIOD_STATUSES, leavePeriodLabel, observationText } from '../../utils/leave';
 

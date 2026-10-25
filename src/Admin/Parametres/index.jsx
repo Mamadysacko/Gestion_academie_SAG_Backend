@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, BriefcaseBusiness, Building2, CalendarDays, ChartNoAxesColumn, ClipboardCheck, Languages, ListChecks, Users } from 'lucide-react';
+import { ArrowLeft, BookOpen, BriefcaseBusiness, Building2, IdCard, CalendarDays, ChartNoAxesColumn, ClipboardCheck, Languages, ListChecks, Users } from 'lucide-react';
 import manifest from 'virtual:ages-features';
 import Configuration from './Configuration';
 import { buildConfigSteps } from './configModel';
@@ -12,6 +12,7 @@ import TypesFormations from './TypesFormations';
 import Sessions from '../OrganisationPedagogique/Sessions';
 import ParametresEvaluation from './ParametresEvaluation';
 import TypesEmployes from './TypesEmployes';
+import Positions from './Positions';
 import { useLanguage } from '../../i18n/useLanguage';
 import SubTabNav from '../../composant/SubTabNav';
 
@@ -23,6 +24,7 @@ const dataTabs = [
   { id: 'niveaux', labelKey: 'levels', icon: ChartNoAxesColumn, component: Niveaux, table: 'niveaux' },
   { id: 'types', labelKey: 'trainingTypes', icon: BookOpen, component: TypesFormations, table: 'types_formations' },
   { id: 'types-employes', labelKey: 'employeeTypes', icon: BriefcaseBusiness, component: TypesEmployes, table: 'types_employes' },
+  { id: 'positions', label: 'Positions', icon: IdCard, component: Positions, table: 'positions' },
   { id: 'sessions', labelKey: 'sessions', icon: CalendarDays, component: Sessions, table: 'sessions' },
   { id: 'evaluations', labelKey: 'evaluationSettings', icon: ClipboardCheck, component: ParametresEvaluation, table: 'parametres' },
 ];

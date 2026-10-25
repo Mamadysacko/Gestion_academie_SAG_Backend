@@ -59,3 +59,11 @@ export const checkConflits = (assignment, schedules = [], excludeId = null) => {
   });
   return errors;
 };
+
+/** Jours de passage d'un groupe (« 1,3 » renvoyé par l'API), à défaut son jour de cours. */
+export const passageDays = (group) => {
+  const days = String(group?.passages || '').split(',').map(Number).filter((day) => day >= 1 && day <= 5);
+  return days.length ? days : (group?.jour_semaine ? [Number(group.jour_semaine)] : []);
+};
+
+export const passagesLabel = (group) => passageDays(group).map((day) => jourLabel(day)).join(', ');

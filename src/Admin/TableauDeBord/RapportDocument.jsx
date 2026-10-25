@@ -1,7 +1,8 @@
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
 import logoSag from '../../assets/logo-sag.png';
 import logoAges from '../../assets/logo-ages.png';
 import { FOOTER_LEFT, FOOTER_RIGHT } from '../../utils/exportExcel';
+import { buildReportCharts, chartSvg } from '../../utils/reportCharts';
 
 const frDate = (iso) => String(iso).slice(0, 10).split('-').reverse().join('/');
 
@@ -22,6 +23,7 @@ const alignOf = (type) => (['int', 'dec', 'pct'].includes(type) ? 'text-right ta
  */
 const RapportDocument = forwardRef(function RapportDocument({ report }, ref) {
   const generated = new Date();
+  const charts = useMemo(() => buildReportCharts(report), [report]);
   return (
     <article ref={ref} className="print-page mx-auto w-[277mm] bg-white text-[10px] text-black shadow-sm ring-1 ring-slate-200" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       <table className="w-full border-collapse">
@@ -86,6 +88,18 @@ const RapportDocument = forwardRef(function RapportDocument({ report }, ref) {
                 </table>
               </section>
             ))}
+
+            {charts.length > 0 && (
+              <section aria-label="Visualisation des données" style={{ breakBefore: 'page', pageBreakBefore: 'always' }}>
+                <h2 className="bg-[#A97324] px-2 py-1 text-[10.5px] font-bold uppercase text-white">Visualisation des données</h2>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  {charts.map((chart) => (
+                    <figure key={chart.kind} className={`m-0 border border-slate-300 ${chart.kind === 'stacked' ? 'col-span-2' : ''}`} style={{ breakInside: 'avoid' }}
+                      dangerouslySetInnerHTML={{ __html: chartSvg(chart, { width: chart.kind === 'stacked' ? 1140 : 560, height: chart.kind === 'stacked' ? 250 : 270, responsive: true }) }} />
+                  ))}
+                </div>
+              </section>
+            )}
           </td></tr>
         </tbody>
       </table>

@@ -8,7 +8,7 @@ import { FEATURE_CONTENT } from '../../aide/helpContent';
  */
 export const CONFIG_TABLES = [
   'annees_scolaires', 'types_formations', 'niveaux', 'sessions', 'groupes',
-  'departements', 'types_employes', 'salles', 'formateurs', 'emplois_du_temps',
+  'departements', 'types_employes', 'positions', 'salles', 'formateurs', 'emplois_du_temps',
   'parametres', 'evaluations',
 ];
 // Contrôle composé du code existant : une salle doit avoir son formateur attitré avant d'être affectée.
@@ -23,6 +23,7 @@ export const WHERE = {
   groupes: { tab: 'groupes' },
   departements: { tab: 'departements' },
   types_employes: { tab: 'types-employes' },
+  positions: { tab: 'positions' },
   parametres: { tab: 'evaluations' },
   evaluations: { module: 'evaluations', sub: 'types' },
   salles: { module: 'salles', sub: 'salles' },
